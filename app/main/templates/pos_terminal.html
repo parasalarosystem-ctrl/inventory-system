@@ -731,6 +731,7 @@ html, body {
                data-name="{{ p.product_name }}"
                data-price="{{ p.selling_price or 0 }}"
                data-balance="{{ p.quantity or 0 }}"
+               data-reorder="{{ p.restock_threshold or 5 }}"
                data-cat="{{ p.undertaking_property or '' }}"
                data-image="{{ p.product_image or '' }}"
                onclick="addToCart(this)">
@@ -1163,5 +1164,7 @@ function toggleSidebar() {
   else badge.textContent = newCount;
 })();
 </script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
 </body>
 </html>

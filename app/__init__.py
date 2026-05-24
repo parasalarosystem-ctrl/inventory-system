@@ -1,6 +1,6 @@
 from flask import Flask
 from app.config import Config
-from app.extensions import db, login_manager, limiter
+from app.extensions import db, login_manager, limiter, socketio
 from flask_migrate import Migrate
 from app.models import User
 
@@ -17,8 +17,8 @@ def create_app():
     migrate.init_app(app, db)
 
     login_manager.init_app(app)
-
-    limiter.init_app(app) 
+    limiter.init_app(app)
+    socketio.init_app(app, cors_allowed_origins='*', async_mode='eventlet')
 
     login_manager.login_view = 'main.login'
 
