@@ -1,0 +1,167 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipt {{ txn.receipt_no }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+  body{background:#0f0f1a !important;}
+  .page-header{margin-bottom:25px;}
+  .page-header h1{margin:0;font-size:1.8rem;font-weight:700;color:#fff;}
+  .receipt-card{background:rgba(30,30,45,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px;max-width:480px;margin:0 auto;box-shadow:0 8px 40px rgba(0,0,0,.3);}
+  .rc-store{text-align:center;margin-bottom:20px;}
+  .rc-store h2{font-size:1.2rem;font-weight:700;color:#fff;}
+  .rc-store p{font-size:.8rem;color:#64748b;margin-top:4px;}
+  .rc-no{text-align:center;margin-bottom:6px;}
+  .rc-no span{background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2);padding:4px 16px;border-radius:20px;font-size:.8rem;font-weight:700;}
+  .rc-meta{text-align:center;font-size:.78rem;color:#64748b;margin-bottom:16px;}
+  .rc-divider{border:none;border-top:1px dashed rgba(255,255,255,.1);margin:14px 0;}
+  .rc-items{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+  .rc-item{display:flex;justify-content:space-between;align-items:center;font-size:.88rem;}
+  .rc-item-left{color:#e2e8f0;}
+  .rc-item-qty{color:#64748b;font-size:.78rem;margin-top:2px;}
+  .rc-item-sub{color:#34d399;font-weight:700;}
+  .rc-totals{display:flex;flex-direction:column;gap:8px;}
+  .rc-row{display:flex;justify-content:space-between;font-size:.88rem;color:#94a3b8;}
+  .rc-row.grand{font-size:1.1rem;font-weight:700;color:#fff;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);}
+  .rc-row.grand span:last-child{color:#34d399;}
+  .rc-row.change span:last-child{color:#34d399;font-weight:700;}
+  .rc-actions{display:flex;gap:10px;margin-top:24px;}
+  .btn-back{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#94a3b8;padding:10px;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;}
+  .btn-back:hover{background:rgba(255,255,255,.1);}
+  .btn-print{flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;color:#fff;padding:10px;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;}
+  .btn-print:hover{opacity:.9;}
+</style>
+</head>
+<body>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="sidebar">
+  <div class="logo-container">
+    <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Logo">
+    <div class="brand-name">Convenient Store</div>
+    <div class="brand-subtitle">Inventory Management System</div>
+  </div>
+  <nav class="nav-menu">
+    <a href="{{ url_for('main.dashboard') }}" class="nav-item"><i class="fas fa-home"></i> <span>Dashboard</span></a>
+    <a href="{{ url_for('main.inventory_list') }}" class="nav-item"><i class="fas fa-boxes"></i> <span>Inventory Management</span></a>
+    <a href="{{ url_for('main.notifications') }}" class="nav-item nav-notif"><i class="fas fa-bell"></i> <span>Notifications</span>{% if notif_count > 0 %}<span class="notif-badge">{{ notif_count }}</span>{% endif %}</a>
+    <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-chart-pie"></i> <span>Reports</span></a>
+    <a href="{{ url_for('main.sales') }}" class="nav-item"><i class="fas fa-cash-register"></i> <span>Sales</span></a>
+    <div class="nav-submenu">
+      <a href="{{ url_for('main.pos_terminal') }}" class="nav-sub-item"><i class="fas fa-desktop"></i><span>POS Terminal</span></a>
+      <a href="{{ url_for('main.pos_transactions') }}" class="nav-sub-item active"><i class="fas fa-receipt"></i><span>Transactions</span></a>
+    </div>
+    <a href="{{ url_for('main.settings') }}" class="nav-item"><i class="fas fa-cog"></i> <span>Settings</span></a>
+  </nav>
+  <a href="{{ url_for('main.logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+</div>
+<div class="main-content">
+  <div class="mobile-header">
+    <div class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+    <div style="font-weight:700;color:#fff;">Receipt</div>
+    <div style="width:30px;"></div>
+  </div>
+  <div class="page-header">
+    <h1><i class="fas fa-receipt" style="color:#10b981;margin-right:10px;"></i>Receipt</h1>
+    <p>Transaction details for {{ txn.receipt_no }}</p>
+  </div>
+  <div class="receipt-card">
+    <div class="rc-store">
+      <h2><i class="fas fa-store" style="color:#10b981;margin-right:8px;"></i>Convenient Store</h2>
+      <p>Official Receipt</p>
+    </div>
+    <div class="rc-no"><span>{{ txn.receipt_no }}</span></div>
+    <div class="rc-meta">
+      {{ txn.created_at.strftime('%B %d, %Y %I:%M %p') }}<br>
+      Cashier: {{ txn.cashier }}
+    </div>
+    <hr class="rc-divider">
+    <div class="rc-items">
+      {% for item in txn.items %}
+      <div class="rc-item">
+        <div class="rc-item-left">
+          <div>{{ item.product_name }}</div>
+          <div class="rc-item-qty">{{ item.quantity }} x &#8369;{{ "%.2f"|format(item.unit_price) }}</div>
+        </div>
+        <div class="rc-item-sub">&#8369;{{ "%.2f"|format(item.subtotal) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <hr class="rc-divider">
+    <div class="rc-totals">
+      <div class="rc-row grand"><span>TOTAL</span><span>&#8369;{{ "%.2f"|format(txn.total_amount) }}</span></div>
+      <div class="rc-row"><span>Amount Tendered</span><span>&#8369;{{ "%.2f"|format(txn.amount_tendered or 0) }}</span></div>
+      <div class="rc-row change"><span>Change</span><span>&#8369;{{ "%.2f"|format(txn.change_given or 0) }}</span></div>
+    </div>
+    <div class="rc-actions">
+      <a href="{{ url_for('main.pos_transactions') }}" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+      <button class="btn-print" onclick="printPage()"><i class="fas fa-print"></i> Print</button>
+    </div>
+  </div>
+</div>
+<script>
+function toggleSidebar(){document.querySelector('.sidebar').classList.toggle('active');document.querySelector('.sidebar-overlay').classList.toggle('active');}
+
+function printPage() {
+    var rno      = {{ txn.receipt_no | tojson }};
+    var date     = {{ txn.created_at.strftime('%B %d, %Y %I:%M %p') | tojson }};
+    var cashier  = {{ txn.cashier | tojson }};
+    var total    = '₱{{ "%.2f"|format(txn.total_amount) }}';
+    var tendered = '₱{{ "%.2f"|format(txn.amount_tendered or 0) }}';
+    var change   = '₱{{ "%.2f"|format(txn.change_given or 0) }}';
+
+    var itemsHtml = '';
+    {% for item in txn.items %}
+    itemsHtml += '<div class="row"><span>{{ item.product_name }} x{{ item.quantity }}</span><span>₱{{ "%.2f"|format(item.subtotal) }}</span></div>';
+    {% endfor %}
+
+    var pw = window.open('', '', 'width=400,height=600');
+    pw.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt ' + rno + '</title><style>'
+        + '* { margin:0; padding:0; box-sizing:border-box; }'
+        + 'body { font-family: "Courier New", monospace; font-size: 13px; color: #000; background: #fff; padding: 20px; }'
+        + '.center { text-align: center; }'
+        + '.store-name { font-size: 17px; font-weight: bold; text-align: center; margin-bottom: 2px; }'
+        + '.sub-title { font-size: 11px; color: #555; text-align: center; margin-bottom: 6px; }'
+        + '.rno { font-size: 11px; font-weight: bold; text-align: center; background: #f0f0f0; padding: 3px 10px; border-radius: 4px; display: inline-block; margin: 4px auto; }'
+        + '.meta { font-size: 11px; color: #555; text-align: center; margin: 2px 0; }'
+        + 'hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }'
+        + '.row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 13px; }'
+        + '.grand { font-weight: bold; font-size: 15px; border-top: 1px solid #000; padding-top: 6px; margin-top: 4px; }'
+        + '.footer { text-align: center; font-size: 11px; color: #555; margin-top: 16px; }'
+        + '@media print { body { padding: 8px; } @page { margin: 0; size: 80mm auto; } }'
+        + '</style></head><body>'
+        + '<div class="store-name">Convenient Store</div>'
+        + '<div class="sub-title">Official Receipt</div>'
+        + '<div class="center"><span class="rno">' + rno + '</span></div>'
+        + '<div class="meta">' + date + '</div>'
+        + '<div class="meta">Cashier: ' + cashier + '</div>'
+        + '<hr>'
+        + itemsHtml
+        + '<hr>'
+        + '<div class="row grand"><span>TOTAL</span><span>' + total + '</span></div>'
+        + '<div class="row"><span>Tendered</span><span>' + tendered + '</span></div>'
+        + '<div class="row"><span>Change</span><span>' + change + '</span></div>'
+        + '<div class="footer"><p>Thank you for shopping!</p><p>Please come again.</p></div>'
+        + '</body></html>');
+    pw.document.close();
+    pw.focus();
+    setTimeout(function() { pw.print(); pw.close(); }, 400);
+}
+
+// Hide notif badge if already seen
+(function() {
+    var badge = document.querySelector('.notif-badge');
+    if (!badge) return;
+    var currentIds = {{ notif_ids }};
+    var seenData = JSON.parse(localStorage.getItem('notif_seen_ids') || '{"low_stock":[],"expiring":[]}');
+    var seenIds = new Set([...(seenData.low_stock||[]),...(seenData.expiring||[])]);
+    var newCount = currentIds.filter(function(id){return !seenIds.has(id);}).length;
+    if (newCount <= 0) badge.style.display = 'none';
+    else badge.textContent = newCount;
+})();
+</script>
+</body>
+</html>

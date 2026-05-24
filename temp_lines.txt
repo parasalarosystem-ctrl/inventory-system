@@ -1,0 +1,28 @@
+    pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
+    return re.match(pattern, password)
+
+
+def check_low_stock_flash(item):
+    balance = item.balance or 0
+    reorder = item.reorder_point or 5
+    if balance <= 0:
+        flash(f'Low Stock: "{item.item_description}" is Out of Stock.', 'warning')
+    elif balance <= reorder:
+        flash(f'Low Stock: "{item.item_description}" has only {balance} left.', 'warning')
+
+
+def check_low_stock_flash(item):
+    balance = item.balance or 0
+    reorder = item.reorder_point or 5
+    if balance <= 0:
+        flash(f'Low Stock: "{item.item_description}" is Out of Stock.', 'warning')
+    elif balance <= reorder:
+        flash(f'Low Stock: "{item.item_description}" has only {balance} left.', 'warning')
+
+# ---------------- EXCEL EXPORT (Server Side) ----------------
+@main.route('/export_excel')
+@login_required
+def export_excel():
+    items = Inventory.query.all()
+    if not items:
+        flash('No items to export.', 'warning')

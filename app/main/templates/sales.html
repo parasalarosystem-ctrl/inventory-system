@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales - PGPC Inventory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
+    <style>
+        .page-header { margin-bottom: 25px; }
+        .page-header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .page-header p  { margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+        .glass-section {
+            background: rgba(30,30,45,0.6); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+            padding: 28px 30px; box-shadow: 0 4px 30px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        /* Summary cards */
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 18px; margin-bottom: 28px; }
+        .s-card { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .s-card h3 { margin: 0 0 6px; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .s-card p  { margin: 0; font-size: 1.55rem; font-weight: 700; }
+
+        /* Chart controls */
+        /* (chart removed) */
+        .header-section { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+        .section-title { font-size: 1.1rem; font-weight: 700; color: #fff; margin: 0; }
+        .section-desc  { font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0; }
+        .table-wrapper { overflow-x: auto; }
+        .report-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .report-table th, .report-table td { padding: 13px 15px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .report-table th { background: rgba(0,0,0,0.3); color: #cbd5e1; font-weight: 600; font-size: 0.82rem; text-transform: uppercase; }
+        .report-table td { color: #e2e8f0; font-size: 0.9rem; }
+        .report-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+        .col-stock-current { color: #fbbf24; font-weight: 600; }
+
+        .btn-print { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 8px; }
+        .btn-print:hover { background: rgba(255,255,255,0.2); }
+
+
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="sidebar">
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Logo">
+        <div class="brand-name">Convenient Store</div>
+        <div class="brand-subtitle">Inventory Management System</div>
+    </div>
+    <nav class="nav-menu">
+        <a href="{{ url_for('main.dashboard') }}"      class="nav-item"><i class="fas fa-home"></i> <span>Dashboard</span></a>
+        <a href="{{ url_for('main.inventory_list') }}" class="nav-item"><i class="fas fa-boxes"></i> <span>Inventory Management</span></a>
+        <a href="{{ url_for('main.notifications') }}"  class="nav-item nav-notif"><i class="fas fa-bell"></i> <span>Notifications</span>
+            {% if notif_count > 0 %}<span class="notif-badge">{{ notif_count }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-chart-pie"></i> <span>Reports</span></a>
+        <a href="{{ url_for('main.sales') }}"   class="nav-item active"><i class="fas fa-cash-register"></i> <span>Sales</span></a>
+        <a href="{{ url_for('main.pos_terminal') }}" class="nav-item" style="margin-left:16px;font-size:0.88rem;"><i class="fas fa-cash-register" style="color:#10b981;"></i> <span>POS Terminal</span></a>
+        <a href="{{ url_for('main.pos_transactions') }}" class="nav-item" style="margin-left:16px;font-size:0.88rem;"><i class="fas fa-receipt"></i> <span>Transactions</span></a>
+        <a href="{{ url_for('main.settings') }}" class="nav-item"><i class="fas fa-cog"></i> <span>Settings</span></a>
+    </nav>
+    <a href="{{ url_for('main.logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+</div>
+
+<div class="main-content">
+    <div class="mobile-header">
+        <div class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+        <div style="font-weight:700; color:#fff;">PGPC Inventory</div>
+        <div style="width:30px;"></div>
+    </div>
+
+    <div class="page-header">
+        <h1>Sales</h1>
+        <p>Product sales overview, movement, and stock status.</p>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div class="summary-cards">
+        <div class="s-card" style="border-left:4px solid #0ea5e9;">
+            <h3>Total Products</h3>
+            <p style="color:#38bdf8;">{{ sales_summary.total_products }}</p>
+        </div>
+        <div class="s-card" style="border-left:4px solid #10b981;">
+            <h3>Total Inventory Value</h3>
+            <p style="color:#34d399;">&#8369;{{ "{:,.2f}".format(sales_summary.total_value) }}</p>
+        </div>
+        <div class="s-card" style="border-left:4px solid #f59e0b;">
+            <h3>Total Units in Stock</h3>
+            <p style="color:#fbbf24;">{{ sales_summary.total_stock }}</p>
+        </div>
+        <div class="s-card" style="border-left:4px solid #ef4444;">
+            <h3>Total Units Sold / Issued</h3>
+            <p style="color:#f87171;">{{ sales_summary.total_sold }}</p>
+        </div>
+    </div>
+
+    <!-- SALES PERIOD METRICS -->
+    <div class="glass-section">
+        <div style="margin-bottom:20px;">
+            <h2 class="section-title">Sales Performance</h2>
+            <p class="section-desc">Track sales across different time periods with trend analysis.</p>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+            <!-- Daily Sales -->
+            <div style="background:linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(37,99,235,0.05) 100%); padding:14px; border-radius:10px; border:1px solid rgba(59,130,246,0.3); position:relative; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:36px; height:36px; background:rgba(59,130,246,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-calendar-day" style="font-size:1rem; color:#3b82f6;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;">Daily Sales</h3>
+                            <p style="margin:2px 0 0; font-size:0.65rem; color:#64748b;">Today</p>
+                        </div>
+                    </div>
+                    {% if sales_summary.daily_change != 0 %}
+                    <div style="padding:3px 7px; border-radius:12px; background:{{ 'rgba(16,185,129,0.15)' if sales_summary.daily_change > 0 else 'rgba(239,68,68,0.15)' }}; border:1px solid {{ 'rgba(16,185,129,0.3)' if sales_summary.daily_change > 0 else 'rgba(239,68,68,0.3)' }};">
+                        <span style="font-size:0.65rem; font-weight:700; color:{{ '#10b981' if sales_summary.daily_change > 0 else '#ef4444' }};">
+                            <i class="fas fa-arrow-{{ 'up' if sales_summary.daily_change > 0 else 'down' }}"></i> {{ "%.1f"|format(sales_summary.daily_change|abs) }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="margin-top:8px;">
+                    <p style="margin:0 0 3px; font-size:1.5rem; font-weight:700; color:#3b82f6;">{{ sales_summary.daily_sales_qty }}</p>
+                    <p style="margin:0 0 8px; font-size:0.75rem; color:#cbd5e1;">units sold</p>
+                    <div style="background:rgba(0,0,0,0.2); padding:7px 9px; border-radius:6px; margin-bottom:6px;">
+                        <p style="margin:0; font-size:0.95rem; font-weight:600; color:#38bdf8;">&#8369;{{ "{:,.2f}".format(sales_summary.daily_sales_value) }}</p>
+                        <p style="margin:2px 0 0; font-size:0.65rem; color:#94a3b8;">Total Revenue</p>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; gap:6px;">
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#60a5fa;">{{ sales_summary.daily_transactions }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Transactions</p>
+                        </div>
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#60a5fa;">&#8369;{{ "{:,.0f}".format(sales_summary.daily_avg) }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Avg Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Sales -->
+            <div style="background:linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.05) 100%); padding:14px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); position:relative; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:36px; height:36px; background:rgba(16,185,129,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-calendar-week" style="font-size:1rem; color:#10b981;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;">Weekly Sales</h3>
+                            <p style="margin:2px 0 0; font-size:0.65rem; color:#64748b;">Last 7 Days</p>
+                        </div>
+                    </div>
+                    {% if sales_summary.weekly_change != 0 %}
+                    <div style="padding:3px 7px; border-radius:12px; background:{{ 'rgba(16,185,129,0.15)' if sales_summary.weekly_change > 0 else 'rgba(239,68,68,0.15)' }}; border:1px solid {{ 'rgba(16,185,129,0.3)' if sales_summary.weekly_change > 0 else 'rgba(239,68,68,0.3)' }};">
+                        <span style="font-size:0.65rem; font-weight:700; color:{{ '#10b981' if sales_summary.weekly_change > 0 else '#ef4444' }};">
+                            <i class="fas fa-arrow-{{ 'up' if sales_summary.weekly_change > 0 else 'down' }}"></i> {{ "%.1f"|format(sales_summary.weekly_change|abs) }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="margin-top:8px;">
+                    <p style="margin:0 0 3px; font-size:1.5rem; font-weight:700; color:#10b981;">{{ sales_summary.weekly_sales_qty }}</p>
+                    <p style="margin:0 0 8px; font-size:0.75rem; color:#cbd5e1;">units sold</p>
+                    <div style="background:rgba(0,0,0,0.2); padding:7px 9px; border-radius:6px; margin-bottom:6px;">
+                        <p style="margin:0; font-size:0.95rem; font-weight:600; color:#34d399;">&#8369;{{ "{:,.2f}".format(sales_summary.weekly_sales_value) }}</p>
+                        <p style="margin:2px 0 0; font-size:0.65rem; color:#94a3b8;">Total Revenue</p>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; gap:6px;">
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#34d399;">{{ sales_summary.weekly_transactions }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Transactions</p>
+                        </div>
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#34d399;">&#8369;{{ "{:,.0f}".format(sales_summary.weekly_avg) }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Avg Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Sales -->
+            <div style="background:linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.05) 100%); padding:14px; border-radius:10px; border:1px solid rgba(245,158,11,0.3); position:relative; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:36px; height:36px; background:rgba(245,158,11,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-calendar-alt" style="font-size:1rem; color:#f59e0b;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;">Monthly Sales</h3>
+                            <p style="margin:2px 0 0; font-size:0.65rem; color:#64748b;">This Month</p>
+                        </div>
+                    </div>
+                    {% if sales_summary.monthly_change != 0 %}
+                    <div style="padding:3px 7px; border-radius:12px; background:{{ 'rgba(16,185,129,0.15)' if sales_summary.monthly_change > 0 else 'rgba(239,68,68,0.15)' }}; border:1px solid {{ 'rgba(16,185,129,0.3)' if sales_summary.monthly_change > 0 else 'rgba(239,68,68,0.3)' }};">
+                        <span style="font-size:0.65rem; font-weight:700; color:{{ '#10b981' if sales_summary.monthly_change > 0 else '#ef4444' }};">
+                            <i class="fas fa-arrow-{{ 'up' if sales_summary.monthly_change > 0 else 'down' }}"></i> {{ "%.1f"|format(sales_summary.monthly_change|abs) }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="margin-top:8px;">
+                    <p style="margin:0 0 3px; font-size:1.5rem; font-weight:700; color:#f59e0b;">{{ sales_summary.monthly_sales_qty }}</p>
+                    <p style="margin:0 0 8px; font-size:0.75rem; color:#cbd5e1;">units sold</p>
+                    <div style="background:rgba(0,0,0,0.2); padding:7px 9px; border-radius:6px; margin-bottom:6px;">
+                        <p style="margin:0; font-size:0.95rem; font-weight:600; color:#fbbf24;">&#8369;{{ "{:,.2f}".format(sales_summary.monthly_sales_value) }}</p>
+                        <p style="margin:2px 0 0; font-size:0.65rem; color:#94a3b8;">Total Revenue</p>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; gap:6px;">
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#fbbf24;">{{ sales_summary.monthly_transactions }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Transactions</p>
+                        </div>
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#fbbf24;">&#8369;{{ "{:,.0f}".format(sales_summary.monthly_avg) }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Avg Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yearly Sales -->
+            <div style="background:linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.05) 100%); padding:14px; border-radius:10px; border:1px solid rgba(239,68,68,0.3); position:relative; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:36px; height:36px; background:rgba(239,68,68,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-calendar" style="font-size:1rem; color:#ef4444;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;">Yearly Sales</h3>
+                            <p style="margin:2px 0 0; font-size:0.65rem; color:#64748b;">This Year</p>
+                        </div>
+                    </div>
+                    {% if sales_summary.yearly_change != 0 %}
+                    <div style="padding:3px 7px; border-radius:12px; background:{{ 'rgba(16,185,129,0.15)' if sales_summary.yearly_change > 0 else 'rgba(239,68,68,0.15)' }}; border:1px solid {{ 'rgba(16,185,129,0.3)' if sales_summary.yearly_change > 0 else 'rgba(239,68,68,0.3)' }};">
+                        <span style="font-size:0.65rem; font-weight:700; color:{{ '#10b981' if sales_summary.yearly_change > 0 else '#ef4444' }};">
+                            <i class="fas fa-arrow-{{ 'up' if sales_summary.yearly_change > 0 else 'down' }}"></i> {{ "%.1f"|format(sales_summary.yearly_change|abs) }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="margin-top:8px;">
+                    <p style="margin:0 0 3px; font-size:1.5rem; font-weight:700; color:#ef4444;">{{ sales_summary.yearly_sales_qty }}</p>
+                    <p style="margin:0 0 8px; font-size:0.75rem; color:#cbd5e1;">units sold</p>
+                    <div style="background:rgba(0,0,0,0.2); padding:7px 9px; border-radius:6px; margin-bottom:6px;">
+                        <p style="margin:0; font-size:0.95rem; font-weight:600; color:#f87171;">&#8369;{{ "{:,.2f}".format(sales_summary.yearly_sales_value) }}</p>
+                        <p style="margin:2px 0 0; font-size:0.65rem; color:#94a3b8;">Total Revenue</p>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; gap:6px;">
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#f87171;">{{ sales_summary.yearly_transactions }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Transactions</p>
+                        </div>
+                        <div style="flex:1; background:rgba(0,0,0,0.15); padding:6px; border-radius:5px; text-align:center;">
+                            <p style="margin:0; font-size:0.8rem; font-weight:600; color:#f87171;">&#8369;{{ "{:,.0f}".format(sales_summary.yearly_avg) }}</p>
+                            <p style="margin:2px 0 0; font-size:0.6rem; color:#94a3b8;">Avg Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SALES TABLE -->
+    <div class="glass-section">
+        <div class="header-section">
+            <div>
+                <h2 class="section-title">Sales Overview</h2>
+                <p class="section-desc">All products with stock movement and current balance.</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <select id="movingFilter" onchange="applyMovingFilter()" style="padding:9px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.25); color:#fff; font-size:0.88rem; font-weight:600; outline:none; cursor:pointer;">
+                    <option value="all">All Products</option>
+                    <option value="fast">&#128200; Fast Moving</option>
+                    <option value="slow">&#128201; Slow Moving</option>
+                </select>
+                <button class="btn-print" onclick="printReport('salesTable','Sales Overview')"><i class="fas fa-print"></i> Print</button>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table class="report-table" id="salesTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Unit</th>
+                        <th>Selling Price</th>
+                        <th>Units Sold/Issued</th>
+                        <th>Current Stock</th>
+                        <th>Total Value</th>
+                    </tr>
+                </thead>
+                <tbody id="salesBody">
+                    {% for item in sales_items %}
+                    {% set current_stock = item.quantity or 0 %}
+                    {% set total_val = current_stock * (item.selling_price or 0) %}
+                    <tr data-sold="0">
+                        <td style="color:var(--text-muted);">{{ loop.index }}</td>
+                        <td><strong>{{ item.product_name }}</strong></td>
+                        <td>{{ item.undertaking_property or '&mdash;' }}</td>
+                        <td>{{ item.unit or '&mdash;' }}</td>
+                        <td>&#8369;{{ "{:,.2f}".format(item.selling_price) if item.selling_price else '0.00' }}</td>
+                        <td style="color:#f87171; font-weight:600;">&mdash;</td>
+                        <td class="col-stock-current">{{ current_stock }}</td>
+                        <td style="color:#38bdf8; font-weight:600;">&#8369;{{ "{:,.2f}".format(total_val) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">No products found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── Sidebar ──
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('active');
+        document.querySelector('.sidebar-overlay').classList.toggle('active');
+    }
+    document.querySelectorAll('.nav-item').forEach(l => {
+        l.addEventListener('click', () => { if (window.innerWidth <= 1024) toggleSidebar(); });
+    });
+
+    // ── Notif badge ──
+    (function() {
+        var badge = document.querySelector('.notif-badge');
+        if (!badge) return;
+        var currentIds = {{ notif_ids }};
+        var seenData = JSON.parse(localStorage.getItem('notif_seen_ids') || '{"low_stock":[],"expiring":[]}');
+        var seenIds = new Set([...(seenData.low_stock||[]),...(seenData.expiring||[])]);
+        var newCount = currentIds.filter(id => !seenIds.has(id)).length;
+        if (newCount <= 0) badge.style.display = 'none';
+        else badge.textContent = newCount;
+    })();
+
+    // ── Table filter ──
+    function applyMovingFilter() {
+        const val = document.getElementById('movingFilter').value;
+        const tbody = document.getElementById('salesBody');
+        const rows = Array.from(tbody.querySelectorAll('tr[data-sold]'));
+        if (!rows.length) return;
+
+        // Sort by units sold (descending for fast, ascending for slow)
+        rows.sort((a, b) => {
+            const soldA = parseInt(a.dataset.sold) || 0;
+            const soldB = parseInt(b.dataset.sold) || 0;
+            return val === 'slow' ? soldA - soldB : soldB - soldA;
+        });
+
+        const half = Math.max(1, Math.ceil(rows.length / 2));
+        rows.forEach((row, i) => {
+            tbody.appendChild(row);
+            row.cells[0].textContent = i + 1;
+            if (val === 'all') {
+                row.style.display = '';
+                row.cells[1].querySelector('strong').style.color = '';
+            } else {
+                const keep = i < half;
+                row.style.display = keep ? '' : 'none';
+                if (keep) row.cells[1].querySelector('strong').style.color = val === 'fast' ? '#34d399' : '#f87171';
+            }
+        });
+
+        const title = document.querySelector('.section-title');
+        if (val === 'fast') title.textContent = '📈 Fast Moving Products';
+        else if (val === 'slow') title.textContent = '📉 Slow Moving Products';
+        else title.textContent = 'Sales Overview';
+    }
+
+    // ── Print ──
+    function printReport(tableId, reportTitle) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        const clone = table.cloneNode(true);
+        const dateStr = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+        const pw = window.open('', '', 'height=700,width=1000');
+        pw.document.write(`<!DOCTYPE html><html><head><title>${reportTitle}</title>
+        <style>body{font-family:Arial,sans-serif;padding:30px;color:#000;}
+        h1{text-align:center;font-size:16px;margin:0;text-transform:uppercase;}
+        h2{text-align:center;font-size:13px;margin:4px 0 2px;color:#444;}
+        .meta{text-align:center;font-size:11px;color:#666;margin-bottom:20px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        th{background:#e8e8e8;border:1px solid #999;padding:8px;text-align:left;font-weight:bold;text-transform:uppercase;font-size:11px;}
+        td{border:1px solid #ccc;padding:7px 8px;}
+        tr:nth-child(even) td{background:#f9f9f9;}
+        .footer{margin-top:50px;display:flex;justify-content:space-between;}
+        .sign-box{text-align:center;width:40%;}
+        .sign-line{border-top:1px solid #000;margin-top:40px;padding-top:5px;font-size:11px;}
+        </style></head><body>
+        <h1>Convenience Store Inventory Management System</h1>
+        <h2>${reportTitle}</h2>
+        <p class="meta">Generated on: ${dateStr}</p>
+        ${clone.outerHTML}
+        <div class="footer">
+            <div class="sign-box"><div class="sign-line">Prepared By<br>Store Staff</div></div>
+            <div class="sign-box"><div class="sign-line">Approved By<br>Store Manager</div></div>
+        </div></body></html>`);
+        pw.document.close();
+        pw.focus();
+        setTimeout(() => { pw.print(); pw.close(); }, 400);
+    }
+</script>
+</body>
+</html>

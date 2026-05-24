@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory List - PGPC Inventory System</title>
+    
+    <!-- Google Fonts: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- External Scripts (Kept as is) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+        /* --- PAGE SPECIFIC STYLES --- */
+
+        /* Header Area */
+        .header { margin-bottom: 25px; }
+        .header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .header p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+        /* Controls Section */
+        .inventory-controls { 
+            display: flex; gap: 15px; margin-bottom: 25px; align-items: center; flex-wrap: wrap; 
+        }
+
+        /* Search Bar (Glass Style) */
+        .search-form { 
+            position: relative; display: flex; flex-grow: 1; 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50px; padding: 5px;
+        }
+        .search-form i { 
+            position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--text-muted); 
+        }
+        .search-form input { 
+            width: 100%; padding: 12px 15px 12px 45px; border: none; outline: none; 
+            background: transparent; font-family: inherit; font-size: 0.95rem; color: #fff;
+        }
+        .search-form input::placeholder { color: rgba(255,255,255,0.5); }
+        
+        .search-form button { 
+            padding: 10px 25px; border: none; background: var(--accent-blue); color: white; 
+            border-radius: 50px; cursor: pointer; font-weight: 600; transition: 0.2s;
+        }
+        .search-form button:hover { background: #0b5ed7; }
+
+        /* Buttons (Glass Style) */
+        .btn { 
+            padding: 12px 20px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.2); 
+            cursor: pointer; display: flex; align-items: center; gap: 8px; text-decoration: none; 
+            font-weight: 500; font-size: 0.9rem; transition: 0.2s;
+            background: rgba(255,255,255,0.1); color: #fff; backdrop-filter: blur(5px);
+        }
+        .btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+
+        /* Specific Button Colors */
+        .btn-filters:hover { background: rgba(255,255,255,0.25); }
+        
+        .btn-import { color: #d8b4fe; border-color: rgba(168, 85, 247, 0.5); }
+        .btn-import:hover { background: rgba(168, 85, 247, 0.2); color: #fff; }
+
+        .btn-template { color: #fde68a; border-color: rgba(251, 191, 36, 0.5); }
+        .btn-template:hover { background: rgba(251, 191, 36, 0.2); color: #fff; }
+        
+        .btn-export { color: #86efac; border-color: rgba(34, 197, 94, 0.5); }
+        .btn-export:hover { background: rgba(34, 197, 94, 0.2); color: #fff; }
+
+        .btn-add-new { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+        .btn-add-new:hover { background: #0b5ed7; }
+        
+        .btn-delete-bulk { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border-color: rgba(239, 68, 68, 0.5); }
+        .btn-delete-bulk:hover { background: rgba(239, 68, 68, 0.4); color: #fff; }
+
+        /* Glass Table Container */
+        .inventory-table-container { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px; 
+            overflow: hidden; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); 
+            display: flex; flex-direction: column;
+            height: calc(100vh - 220px); 
+            display: flex; 
+    flex-direction: column;
+    height: calc(100vh - 220px);
+        }
+
+        .total-summary { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    padding: 15px 25px; 
+    background: rgba(30, 30, 45, 0.95); 
+    border-top: 1px solid var(--glass-border); 
+    font-size: 0.9rem; 
+    color: var(--text-muted);
+    flex-shrink: 0; 
+    z-index: 10;
+    margin-top: auto; /* Pushes footer to bottom */
+}
+
+.total-summary strong { 
+    color: #fff; 
+    font-weight: 600;
+}
+
+
+.inventory-table {
+    flex: 1;
+    overflow-y: auto;
+}
+
+
+
+        /* Table Header Sticky Fix */
+        .inventory-table th { 
+            background: rgba(30, 30, 45, 0.95); /* Nearly opaque header */
+            color: var(--text-muted);             
+            font-weight: 600; font-size: 0.8rem; 
+            text-transform: uppercase; letter-spacing: 0.5px; 
+            position: sticky; top: 0; z-index: 5;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .inventory-table tbody tr { transition: background 0.2s; }
+        .inventory-table tbody tr:hover { background: rgba(255,255,255,0.08); }
+        
+        .inventory-table td { 
+            color: #fff; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.05); 
+        }
+
+        /* Action Icons */
+        .btn-action { 
+            width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; margin-right: 5px; 
+            display: inline-flex; align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .btn-edit { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .btn-edit:hover { background: rgba(245, 158, 11, 0.4); }
+
+        .btn-delete { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .btn-delete:hover { background: rgba(239, 68, 68, 0.4); }
+
+        .btn-more { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
+        .btn-more:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+        .btn-view { 
+            background: rgba(13, 110, 253, 0.2); color: #60a5fa; width: auto; padding: 0 10px; height: 26px; font-size: 0.75rem; 
+        }
+        .btn-view:hover { background: rgba(13, 110, 253, 0.4); color: #fff; }
+
+        /* View Toggle */
+        .view-toggle {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 50px; padding: 5px 14px; cursor: pointer; user-select: none;
+            font-size: 0.85rem; font-weight: 600; color: var(--text-muted); transition: 0.2s;
+        }
+        .view-toggle:hover { background: rgba(255,255,255,0.14); color: #fff; }
+        .toggle-switch {
+            width: 36px; height: 20px; background: rgba(255,255,255,0.15); border-radius: 50px;
+            position: relative; transition: background 0.3s;
+        }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: #fff; transition: transform 0.3s;
+        }
+        .toggle-switch.on { background: #2563eb; }
+        .toggle-switch.on::after { transform: translateX(16px); }
+
+        /* Card Grid View - Default state */
+        body:not(.table-view-active) #cardGrid { display: block; }
+        body:not(.table-view-active) .inventory-table-container { display: none; }
+        
+        /* Table View - Active state */
+        body.table-view-active #cardGrid { display: none; }
+        body.table-view-active .inventory-table-container { display: flex; }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 18px; padding: 5px 0;
+        }
+        .product-card {
+            background: rgba(22,22,38,0.85);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: default;
+            border: 1.5px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+        }
+        .product-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+        /* Stock-level border colors */
+        .card-border-green  { border-color: rgba(16,185,129,0.5); }
+        .card-border-yellow { border-color: rgba(245,158,11,0.5); }
+        .card-border-red    { border-color: rgba(239,68,68,0.45); }
+        .card-border-green:hover  { border-color: #10b981; box-shadow: 0 8px 24px rgba(16,185,129,0.15); }
+        .card-border-yellow:hover { border-color: #f59e0b; box-shadow: 0 8px 24px rgba(245,158,11,0.15); }
+        .card-border-red:hover    { border-color: #ef4444; box-shadow: 0 8px 24px rgba(239,68,68,0.15); }
+        .card-img-wrap {
+            position: relative; width: 100%; height: 150px;
+            background: rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .card-img-placeholder { font-size: 3rem; color: rgba(255,255,255,0.12); }
+
+        /* Out of stock overlay */
+        .oos-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.52);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2;
+        }
+        .oos-label {
+            background: rgba(239,68,68,0.85);
+            color: #fff;
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            padding: 5px 12px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            white-space: nowrap;
+        }
+        .card-body {
+            padding: 11px 12px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+        }
+        .card-name { font-weight: 700; font-size: 0.87rem; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-cat  { font-size: 0.73rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-qty  { font-size: 0.78rem; font-weight: 600; margin-top: 2px; }
+        .card-border-red .card-name,
+        .card-border-red .card-cat,
+        .card-border-red .card-qty { color: #64748b !important; }
+
+        /* Edit / Delete action buttons — always visible in card footer */
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            padding: 0 12px 12px;
+        }
+        .card-btn-edit,
+        .card-btn-delete {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 0;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .card-btn-edit {
+            background: rgba(245,158,11,0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(245,158,11,0.25);
+        }
+        .card-btn-edit:hover {
+            background: rgba(245,158,11,0.25);
+            transform: translateY(-1px);
+        }
+        .card-btn-delete {
+            background: rgba(239,68,68,0.1);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,0.22);
+        }
+        .card-btn-delete:hover {
+            background: rgba(239,68,68,0.22);
+            transform: translateY(-1px);
+        }
+
+        /* Remove old ⋮ menu styles */
+        .card-action-wrap { display: none; }
+
+        /* Filter inline dropdown panel */
+        .filter-dropdown-wrap { position: relative; }
+        
+        /* Filter Panel Overlay */
+        .filter-panel-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1100;
+            align-items: center;
+            justify-content: center;
+        }
+        .filter-panel-overlay.open { display: flex; }
+        
+        .filter-panel {
+            position: relative;
+            width: 380px;
+            max-width: 90%;
+            background: #1e1e2d;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .filter-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .filter-panel-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .filter-close-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 5px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        
+        .filter-close-btn:hover {
+            color: #fff;
+        }
+        
+        .filter-panel.open { display: block; }
+        .filter-panel .fp-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .filter-panel select,
+        .filter-panel input[type="number"] {
+            width: 100%; padding: 9px 12px; border-radius: 9px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3); color: #fff;
+            font-size: 0.88rem; outline: none;
+        }
+        .filter-panel select:focus,
+        .filter-panel input[type="number"]:focus { border-color: #3b82f6; }
+        .filter-panel .fp-row { margin-bottom: 14px; }
+        .filter-panel .fp-price { display: flex; gap: 8px; align-items: center; }
+        .filter-panel .fp-price input { flex: 1; }
+        .filter-panel .fp-price span { color: #64748b; flex-shrink: 0; }
+        .filter-panel .fp-actions {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 16px; padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+        }
+        .fp-btn-reset {
+            background: transparent; color: #94a3b8;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 16px; border-radius: 8px;
+            cursor: pointer; font-size: 0.85rem; font-weight: 600;
+        }
+        .fp-btn-reset:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .fp-btn-apply {
+            background: #2563eb; color: #fff; border: none;
+            padding: 8px 20px; border-radius: 8px;
+            cursor: pointer; font-size: 0.85rem; font-weight: 600;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+        }
+        .fp-btn-apply:hover { background: #1d4ed8; }
+
+        /* Checkbox hover reveal */
+        .item-checkbox { opacity: 0; transition: opacity 0.15s; }
+        .item-row:hover .item-checkbox,
+        .item-checkbox:checked { opacity: 1; }
+        #selectAll { opacity: 0; transition: opacity 0.15s; }
+        #selectAll:checked,
+        .inventory-table table:hover #selectAll { opacity: 1; }
+
+        /* Expiration status dot */
+        .expiry-dot {
+            display: inline-block; width: 10px; height: 10px;
+            border-radius: 50%; margin-right: 8px; flex-shrink: 0;
+            vertical-align: middle;
+        }
+        .expiry-good    { background: #10b981; box-shadow: 0 0 5px rgba(16,185,129,0.6); }
+        .expiry-expiring{ background: #f59e0b; box-shadow: 0 0 5px rgba(245,158,11,0.6); }
+        .expiry-expired { background: #ef4444; box-shadow: 0 0 5px rgba(239,68,68,0.6); }
+
+
+        /* --- MODALS (Dark Glass Theme) --- */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+        
+        .modal-content { 
+            background: #1e1e2d; /* Solid dark background for modals for readability */
+            padding: 30px; border-radius: 16px; width: 600px; max-width: 90%; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative; max-height: 90vh; overflow-y: auto;
+            border: 1px solid var(--glass-border); color: #fff;
+        }
+        
+        .close-button { float: right; font-size: 24px; cursor: pointer; color: #cbd5e1; transition: 0.2s; }
+        .close-button:hover { color: #fff; }
+        
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .form-group label { font-weight: 500; margin-bottom: 5px; font-size: 0.85rem; color: #cbd5e1; }
+        
+        .form-group input, .form-group select, .form-group textarea { 
+            padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); outline: none; 
+            font-size: 0.95rem; background: rgba(0,0,0,0.2); color: #fff;
+        }
+        .form-group input:focus { border-color: var(--accent-blue); background: rgba(0,0,0,0.4); }
+        
+        .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Image View Modal */
+        .image-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); justify-content: center; align-items: center; flex-direction: column; }
+        .image-modal-content { max-width: 90%; max-height: 80vh; border-radius: 10px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+        .close-image-modal { position: absolute; top: 20px; right: 40px; color: white; font-size: 40px; cursor: pointer; }
+        #image-caption { color: white; margin-top: 15px; font-size: 1.1rem; font-weight: 500; }
+
+        /* Flashes */
+        .flashes { list-style: none; padding: 0; margin-bottom: 20px; }
+        .flashes li { padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; color: #fff; }
+        .success { background: rgba(22, 163, 74, 0.25); border: 1px solid rgba(22, 163, 74, 0.5); color: #86efac; }
+        .error { background: rgba(220, 38, 38, 0.25); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5; }
+        .warning { background: rgba(245, 158, 11, 0.25); border: 1px solid rgba(245, 158, 11, 0.5); color: #fbbf24; }
+
+        /* ACTION DROPDOWN (Dark) */
+        .action-menu { position: relative; display: inline-block; }
+.action-dropdown {
+    display: none; 
+    position: absolute; 
+    right: 0; 
+    top: 100%; 
+    margin-top: 5px;
+    background-color: #2b2b40; 
+    min-width: 160px; 
+    width: max-content; /* Fit content width */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 999; 
+    border-radius: 10px; 
+    overflow: hidden; /* Hide overflow */
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.action-dropdown button {
+    width: 100%; 
+    text-align: left; 
+    background: none; 
+    border: none; 
+    padding: 12px 15px; /* Adjust padding if needed */
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    font-size: 0.9rem;
+    color: #cbd5e1; 
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    white-space: nowrap; /* Prevent text wrapping */
+}
+        .action-menu.active .action-dropdown { display: block; }
+                .action-dropdown button:last-child { border-bottom: none; }
+        .action-dropdown button:hover { background-color: rgba(255,255,255,0.05); color: #fff; }
+
+/* Print Override */
+#printSlipArea { display: none; }
+
+@media print {
+    @page {
+        size: portrait;
+        margin: 0.5in;
+    }
+    
+    * {
+        box-sizing: border-box !important;
+    }
+    
+    body * { 
+        visibility: hidden !important;
+        color: #000 !important;
+    }
+    
+    #printSlipArea, #printSlipArea * { 
+        visibility: visible !important;
+    }
+    
+    #printSlipArea { 
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background: white !important;
+        z-index: 9999 !important;
+        padding: 0.3in !important;
+        margin: 0 !important;
+    }
+    
+    #printSlipArea table {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: auto !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+        background: white !important;
+        color: black !important;
+    }
+    
+    #printSlipArea td {
+        word-wrap: break-word !important;
+        overflow: hidden !important;
+        padding: 12px !important;
+        border: 1px solid #000 !important;
+        color: black !important;
+        background: white !important;
+        font-size: 9px !important;
+        line-height: 1.4 !important;
+    }
+    
+    /* Make headers fit with smaller font and wrapping */
+    #printSlipArea th {
+        word-wrap: break-word !important;
+        white-space: normal !important; /* Allow text to wrap */
+        overflow-wrap: break-word !important;
+        padding: 8px 4px !important; /* Less horizontal padding */
+        border: 1px solid #000 !important;
+        color: black !important;
+        background: white !important;
+        font-size: 8pt !important; /* Smaller font for headers */
+        font-weight: bold !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
+        vertical-align: middle !important;
+    }
+    
+    #printSlipArea img {
+        max-width: 150px !important;
+        max-height: 220px !important;
+        height: auto !important;
+        width: auto !important;
+        display: block !important;
+        margin: 10px auto !important;
+    }
+    
+    /* Column widths */
+    #printSlipArea table td:nth-child(1) { width: 10% !important; }
+    #printSlipArea table td:nth-child(2) { width: 10% !important; }
+    #printSlipArea table td:nth-child(3) { width: 15% !important; }
+    #printSlipArea table td:nth-child(4) { width: 45% !important; }
+    #printSlipArea table td:nth-child(5) { width: 12% !important; }
+    #printSlipArea table td:nth-child(6) { width: 8% !important; }
+    
+    #printSlipArea .glass-card,
+    #printSlipArea .metric-card {
+        background: white !important;
+        backdrop-filter: none !important;
+        border: 1px solid #000 !important;
+    }
+}
+    </style>
+</head>
+
+<body>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <!-- SIDEBAR -->
+<div class="sidebar">
+<div class="logo-container">
+    <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Convenience Store Logo">
+    <div class="brand-name">Convenient Store</div>
+    <div class="brand-subtitle">Inventory Management System</div>
+</div>
+
+    <nav class="nav-menu">
+        <a href="{{ url_for('main.dashboard') }}" class="nav-item">
+            <i class="fas fa-home"></i> <span>Dashboard</span>
+        </a>
+        <a href="{{ url_for('main.inventory_list') }}" class="nav-item active">
+            <i class="fas fa-boxes"></i> <span>Inventory Management</span>
+        </a>
+        <a href="{{ url_for('main.notifications') }}" class="nav-item nav-notif">
+            <i class="fas fa-bell"></i> <span>Notifications</span>
+            {% if notif_count > 0 %}<span class="notif-badge">{{ notif_count }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item">
+            <i class="fas fa-chart-pie"></i> <span>Reports</span>
+        </a>
+        <a href="{{ url_for('main.sales') }}" class="nav-item">
+            <i class="fas fa-cash-register"></i> <span>Sales</span>
+        </a>
+        <a href="{{ url_for('main.settings') }}" class="nav-item">
+            <i class="fas fa-cog"></i> <span>Settings</span>
+        </a>
+    </nav>
+
+    <a href="{{ url_for('main.logout') }}" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+    </a>
+</div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+    <div class="mobile-header">
+        <div class="menu-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </div>
+        <div style="font-weight:700;">PGPC Inventory</div>
+        <!-- Optional: User Icon -->
+        <div style="width:30px;"></div> 
+    </div>
+        <div class="header">
+            <h1>Inventory Management</h1>
+            <p>Product catalog and stock overview</p>
+        </div>
+
+        <!-- FLASH MESSAGES -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <ul class="flashes" id="flashMessages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+            <script>
+                setTimeout(function() {
+                    const el = document.getElementById('flashMessages');
+                    if (el) {
+                        el.style.transition = 'opacity 0.5s ease';
+                        el.style.opacity = '0';
+                        setTimeout(() => el.remove(), 500);
+                    }
+                }, 3000);
+            </script>
+            {% endif %}
+        {% endwith %}
+
+        <!-- CONTROLS -->
+        <div class="inventory-controls">
+            <form method="GET" action="{{ url_for('main.inventory_list') }}" class="search-form">
+                <i class="fas fa-search"></i>
+                <input type="text" name="search" placeholder="Search by name or category..." value="{{ search_term if search_term }}">
+                <button type="submit">Search</button>
+            </form>
+            <a href="{{ url_for('main.add_item') }}" class="btn btn-add-new"><i class="fas fa-plus"></i> Add Product</a>
+            <label class="btn btn-import" style="cursor:pointer;" title="Import products from Excel">
+                <i class="fas fa-file-upload"></i> Bulk Import
+                <input type="file" accept=".xlsx" style="display:none;" onchange="handleImportFile(this)">
+            </label>
+            <button class="btn btn-template" onclick="downloadImportTemplate()" title="Download Excel template for bulk import">
+                <i class="fas fa-file-download"></i> Download Template
+            </button>
+            <div class="filter-dropdown-wrap">
+                <button class="btn" onclick="toggleFilterPanel(event)" id="filterBtn" title="Filter products">
+                    <i class="fas fa-filter"></i> Filter
+                    <span id="filterActiveBadge" style="display:none; background:#2563eb; color:#fff; border-radius:50%; width:18px; height:18px; font-size:0.7rem; align-items:center; justify-content:center; margin-left:4px;"></span>
+                </button>
+            </div>
+            
+            <!-- Filter Panel Overlay -->
+            <div class="filter-panel-overlay" id="filterPanelOverlay" onclick="closeFilterPanelOnOverlay(event)">
+                <div class="filter-panel" id="filterPanel" onclick="event.stopPropagation()">
+                    <div class="filter-panel-header">
+                        <h3><i class="fas fa-filter" style="margin-right:8px; color:#3b82f6;"></i>Filter Products</h3>
+                        <button class="filter-close-btn" onclick="closeFilterPanel()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="fp-row">
+                        <label class="fp-label">Stock Status</label>
+                        <select id="balFilterSelect" onchange="">
+                            <option value="all">All</option>
+                            <option value="positive">In Stock</option>
+                            <option value="low">Low Stock</option>
+                            <option value="zero">Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="fp-row">
+                        <label class="fp-label">Category</label>
+                        <select id="filterCategory">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="fp-row">
+                        <label class="fp-label">Expiry Status</label>
+                        <select id="expiryFilterSelect">
+                            <option value="all">All</option>
+                            <option value="good">Good</option>
+                            <option value="expiring">Expiring Soon</option>
+                            <option value="expired">Expired</option>
+                            <option value="none">No Expiry</option>
+                        </select>
+                    </div>
+                    <div class="fp-row">
+                        <label class="fp-label">Selling Price Range (&#8369;)</label>
+                        <div class="fp-price">
+                            <input type="number" id="filterPriceMin" placeholder="Min" min="0">
+                            <span>—</span>
+                            <input type="number" id="filterPriceMax" placeholder="Max" min="0">
+                        </div>
+                    </div>
+                    <div class="fp-actions">
+                        <button class="fp-btn-reset" onclick="resetFilters()"><i class="fas fa-undo" style="margin-right:5px;"></i>Reset</button>
+                        <button class="fp-btn-apply" onclick="applyFilters()"><i class="fas fa-check" style="margin-right:5px;"></i>Apply</button>
+                    </div>
+                    <!-- hidden radios for JS compatibility -->
+                    <div style="display:none;">
+                        <input type="radio" name="balFilter" value="all" id="balAll" checked>
+                        <input type="radio" name="balFilter" value="positive" id="balPositive">
+                        <input type="radio" name="balFilter" value="low" id="balLow">
+                        <input type="radio" name="balFilter" value="zero" id="balZero">
+                        <input type="radio" name="expiryFilter" value="all" id="expiryAll" checked>
+                        <input type="radio" name="expiryFilter" value="good" id="expiryGood">
+                        <input type="radio" name="expiryFilter" value="expiring" id="expiryExpiring">
+                        <input type="radio" name="expiryFilter" value="expired" id="expiryExpired">
+                        <input type="radio" name="expiryFilter" value="none" id="expiryNone">
+                    </div>
+                </div>
+            </div>
+            <div class="view-toggle" onclick="toggleCardView()" title="Toggle view">
+                <i class="fas fa-th-large" style="font-size:0.9rem;"></i>
+                <span id="toggleLabel">Card View</span>
+                <div class="toggle-switch" id="toggleSwitch"></div>
+            </div>
+        </div>
+
+        <!-- INVENTORY TABLE -->
+        <div style="margin-bottom:15px;">
+            <h2 style="margin:0 0 4px; font-size:1.3rem; font-weight:700; color:#fff;">Product List</h2>
+            <p style="margin:0 0 15px; color:var(--text-muted); font-size:0.85rem;">Manage your products and catalog.</p>
+        </div>
+
+        <!-- CARD GRID VIEW -->
+        <div id="cardGrid">
+            <div class="card-grid">
+                {% for item in items %}
+                {% set balance = item.quantity or 0 %}
+                {% if balance >= 15 %}
+                    {% set card_border = 'card-border-green' %}
+                    {% set qty_color = '#34d399' %}
+                {% elif balance >= 1 %}
+                    {% set card_border = 'card-border-yellow' %}
+                    {% set qty_color = '#fbbf24' %}
+                {% else %}
+                    {% set card_border = 'card-border-red' %}
+                    {% set qty_color = '#f87171' %}
+                {% endif %}
+                <div class="product-card {{ card_border }}"
+                     data-balance="{{ balance }}"
+                     data-reorder="{{ item.restock_threshold or 5 }}"
+                     data-category="{{ item.undertaking_property or '' }}"
+                     data-expiry="{{ expiry_status.get(item.id, 'none') }}"
+                     data-price="{{ item.selling_price or 0 }}"
+                     data-item='{{ item.to_dict() | tojson | e }}'>
+                    <div class="card-img-wrap">
+                        {% if item.product_image %}
+                            <img src="{{ url_for('static', filename='uploads/' ~ item.product_image) }}" alt="{{ item.product_name }}">
+                        {% else %}
+                            <i class="fas fa-box-open card-img-placeholder"></i>
+                        {% endif %}
+                        {% if balance <= 0 %}
+                        <div class="oos-overlay">
+                            <span class="oos-label">Out of Stock</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <div class="card-name" title="{{ item.product_name }}">{{ item.product_name }}</div>
+                        <div class="card-cat" title="{{ item.undertaking_property or '—' }}">{{ item.undertaking_property or '—' }}</div>
+                        <div class="card-qty" style="color:{{ qty_color }}">
+                            <i class="fas fa-cubes" style="margin-right:4px;"></i>{{ balance }} {{ item.unit or '' }}
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="card-btn-edit" onclick="openEditModal(JSON.parse(this.closest('.product-card').dataset.item))">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="card-btn-delete" onclick="openDeleteQuantityModal({{ item.id }}, {{ balance }})">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color:var(--text-muted); grid-column:1/-1; text-align:center; padding:30px;">No items found.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="inventory-table-container">
+            <div class="inventory-table">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding:12px 15px; width:40px;"><input type="checkbox" id="selectAll" onchange="toggleAll(this)" style="width:16px; height:16px; cursor:pointer;"></th>
+                            <th style="padding:12px 15px; width:40px;">#</th>
+                            <th style="padding:12px 15px; width:64px;">Image</th>
+                            <th style="padding:12px 15px;">Product Name</th>
+                            <th style="padding:12px 15px;">Category</th>
+                            <th style="padding:12px 15px;">Unit</th>
+                            <th style="padding:12px 15px; text-align:right;">Price</th>
+                            <th style="padding:12px 15px; text-align:center;">Stock</th>
+                            <th style="padding:12px 15px;">Expiry</th>
+                            <th style="padding:12px 15px; text-align:center;">Edit</th>
+                            <th style="padding:12px 15px; text-align:center;">Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                            {% set balance = item.quantity or 0 %}
+                            {% set exp_status = expiry_status.get(item.id, 'none') %}
+                            {% set exp_date = expiry_dates.get(item.id) %}
+                            <tr class="item-row" data-balance="{{ balance }}"
+                                data-reorder="{{ item.restock_threshold or 5 }}"
+                                data-category="{{ item.undertaking_property or '' }}"
+                                data-expiry="{{ exp_status }}"
+                                data-price="{{ item.selling_price or 0 }}"
+                                data-item='{{ item.to_dict() | tojson | e }}'>
+                                <td style="padding:12px 15px;">
+                                    <input type="checkbox" class="item-checkbox" value="{{ item.id }}" onchange="toggleBulkActions()" style="width:16px; height:16px; cursor:pointer;">
+                                </td>
+                                <td style="padding:12px 15px; color:var(--text-muted); font-size:0.85rem;">{{ loop.index }}</td>
+                                <td style="padding:8px 15px;">
+                                    {% if item.product_image %}
+                                        <img src="{{ url_for('static', filename='uploads/' ~ item.product_image) }}"
+                                             alt="{{ item.product_name }}"
+                                             style="width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1); cursor:pointer;"
+                                             onclick="openImageModal('/static/uploads/{{ item.product_image }}', '{{ item.product_name }}')">
+                                    {% else %}
+                                        <div style="width:44px; height:44px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; color:#475569; font-size:1.1rem;">
+                                            <i class="fas fa-box-open"></i>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td style="padding:12px 15px;">
+                                    <strong style="color:#fff;">{{ item.product_name }}</strong>
+                                </td>
+                                <td style="padding:12px 15px; color:var(--text-muted);">{{ item.undertaking_property or '&mdash;' }}</td>
+                                <td style="padding:12px 15px; color:var(--text-muted);">{{ item.unit or '&mdash;' }}</td>
+                                <td style="padding:12px 15px; text-align:right; color:#fff;">&#8369;{{ "{:,.2f}".format(item.selling_price) if item.selling_price else '0.00' }}</td>
+                                <td style="padding:12px 15px; text-align:center;">
+                                    {% if balance <= 0 %}
+                                        <span style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3); padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; white-space:nowrap;">
+                                            <i class="fas fa-times-circle" style="margin-right:3px;"></i>Out of Stock
+                                        </span>
+                                    {% elif balance <= (item.restock_threshold or 5) %}
+                                        <span style="background:rgba(251,191,36,0.15); color:#fbbf24; border:1px solid rgba(251,191,36,0.3); padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; white-space:nowrap;">
+                                            <i class="fas fa-exclamation-circle" style="margin-right:3px;"></i>Low ({{ balance }})
+                                        </span>
+                                    {% else %}
+                                        <span style="background:rgba(52,211,153,0.15); color:#34d399; border:1px solid rgba(52,211,153,0.3); padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; white-space:nowrap;">
+                                            <i class="fas fa-check-circle" style="margin-right:3px;"></i>{{ balance }} in stock
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding:12px 15px; font-size:0.85rem;">
+                                    {% if exp_status == 'expired' %}
+                                        <span style="color:#f87171;"><i class="fas fa-times-circle" style="margin-right:4px;"></i>{{ exp_date or 'Expired' }}</span>
+                                    {% elif exp_status == 'expiring' %}
+                                        <span style="color:#fbbf24;"><i class="fas fa-clock" style="margin-right:4px;"></i>{{ exp_date or 'Soon' }}</span>
+                                    {% elif exp_status == 'good' %}
+                                        <span style="color:#34d399;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>{{ exp_date }}</span>
+                                    {% else %}
+                                        <span style="color:var(--text-muted);">&mdash;</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding:12px 15px; text-align:center;">
+                                    <button class="btn-action btn-edit" title="Edit"
+                                            onclick="openEditModal(JSON.parse(this.closest('tr').dataset.item))">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                                <td style="padding:12px 15px; text-align:center;">
+                                    <button class="btn-action btn-delete" title="Delete"
+                                            onclick="openDeleteQuantityModal({{ item.id }}, {{ balance }})">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="11" style="text-align:center; padding:30px; color:#999;">No items found.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="total-summary">
+                <div id="summaryCount">Showing {{ items|length }} item(s)</div>
+            </div>
+        </div>
+
+        <!-- Bulk Delete Hidden Form -->
+        <form id="bulkDeleteForm" action="{{ url_for('main.delete_multiple_items') }}" method="POST">
+            <div id="hiddenInputsContainer"></div>
+        </form>
+        <div id="bulkActions" style="display:none; margin-top:10px;">
+            <button class="btn btn-delete-bulk" onclick="confirmBulkDelete()">
+                <i class="fas fa-trash-alt"></i> Delete Selected
+            </button>
+        </div>
+
+    </div> <!-- End Main Content -->
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- 2. Edit Modal -->
+    <div id="editItemModal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <span class="close-button" onclick="closeEditModal()">&times;</span>
+            <h2 style="margin-top:0;">Edit Product</h2>
+            <form id="editItemForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" id="edit_item_id" name="item_id">
+
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="edit_product_name" name="product_name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="edit_undertaking_property" name="undertaking_property" placeholder="e.g. Beverages, Snacks">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="edit_quantity" name="quantity" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Unit</label>
+                        <input type="text" id="edit_unit" name="unit" placeholder="e.g. pcs, box, kg">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Selling Price (&#8369;)</label>
+                    <input type="number" id="edit_selling_price" name="selling_price" step="0.01" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Restock Threshold <span style="color:#fbbf24; font-size:0.75rem;"><i class="fas fa-bell"></i> Notification triggers at or below this</span></label>
+                    <input type="number" id="edit_restock_threshold" name="restock_threshold" min="1" value="5">
+                </div>
+
+                <div class="form-group">
+                    <label>Expiry Date</label>
+                    <input type="date" id="edit_expiry_date" name="expiry_date">
+                </div>
+
+                <div class="form-group">
+                    <label>Product Image</label>
+                    <div id="current_image_preview" style="margin-bottom:5px; font-size:0.8rem; color:#64748b;"></div>
+                    <input type="file" name="image" accept="image/*">
+                    <div style="margin-top:5px;">
+                        <input type="checkbox" id="delete_image" name="delete_image" value="yes">
+                        <label for="delete_image" style="font-weight:normal; font-size:0.8rem; color:#f87171;">Remove current image</label>
+                    </div>
+                </div>
+
+                <div style="text-align:right; margin-top:20px;">
+                    <button type="button" class="btn" style="background:#9ca3af; color:white; display:inline-flex; margin-right:5px;" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn" style="background:var(--accent-blue); color:white; display:inline-flex;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<!-- 3. Disposal Modal -->
+<!-- 3. Disposal Modal (Updated with Source Logic) -->
+<div id="disposalModal" class="modal">
+    <div class="modal-content" style="width: 450px;">
+        <span class="close-button" onclick="closeDisposalModal()">&times;</span>
+        <h2 style="margin-top:0; color:#dc2626;">Dispose Item</h2>
+        
+        <form action="{{ url_for('main.dispose_item') }}" method="POST">
+            <input type="hidden" id="disposeItemId" name="item_id">
+            <input type="hidden" name="disposal_source" value="balance">
+
+            <div class="form-group">
+                <label>Quantity to Dispose: <small style="color:#666;">(Available: <span id="qtyDisplay">0</span>)</small></label>
+                <input type="number" id="dispose_qty" name="dispose_qty" min="1" step="any" required>
+            </div>
+
+            <div class="form-group">
+                <label>Status Type</label>
+                <select name="status" required>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Lost">Lost / Missing</option>
+                    <option value="Disposed">Condemned / Scrapped</option>
+                    <option value="Sold">Sold</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Reason / Notes</label>
+                <textarea name="reason" required placeholder="E.g. Broken while in use..." rows="3"></textarea>
+            </div>
+            
+            <div style="text-align:right; margin-top:20px;">
+                <button type="button" class="btn" style="background:#9ca3af; color:white; display:inline-flex; margin-right:5px;" onclick="closeDisposalModal()">Cancel</button>
+                <button type="submit" class="btn" style="background:#dc2626; color:white; display:inline-flex;">Confirm Disposal</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- DELETE QUANTITY MODAL -->
+<div id="deleteQuantityModal" class="modal">
+    <div class="modal-content" style="width: 400px;">
+        <span class="close-button" onclick="closeDeleteQuantityModal()">&times;</span>
+        <h2 style="margin-top:0; color:#dc2626;">Delete Items</h2>
+        
+        <form action="{{ url_for('main.delete_item_quantity') }}" method="POST">
+            <input type="hidden" id="del_item_id" name="item_id">
+            
+            <div style="background: #fee2e2; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #fecaca;">
+                <p style="margin:0; font-size: 0.9rem; color: #991b1b;">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Current Total Qty: <strong id="del_display_qty">0</strong>
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>How many do you want to delete?</label>
+                <input type="number" id="del_qty_input" name="quantity" min="1" value="1" required>
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex; align-items:center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="del_entire_record" name="delete_all" value="yes" onchange="toggleDeleteAll()">
+                    Delete the entire record (All items)
+                </label>
+            </div>
+
+            <div style="text-align:right; margin-top:20px;">
+                <button type="button" class="btn" style="background:#9ca3af; color:white; display:inline-flex; margin-right:5px;" onclick="closeDeleteQuantityModal()">Cancel</button>
+                <button type="submit" class="btn" style="background:#dc2626; color:white; display:inline-flex;">Confirm Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+    <!-- 4. Image Viewer Modal -->
+    <div id="fullImageModal" class="image-modal" onclick="closeImageModal()">
+        <span class="close-image-modal">&times;</span>
+        <img class="image-modal-content" id="img01">
+        <div id="image-caption"></div>
+    </div>
+
+    <!-- Hidden Print Area -->
+    <div id="printSlipArea"></div>
+
+
+
+<!-- BORROW ITEM MODAL -->
+<div id="borrowModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#1e1e2d; width:400px; padding:30px; border-radius:15px; border:1px solid rgba(255,255,255,0.1); color:white; position:relative;">
+        
+        <h3 style="margin-top:0;">Borrow Item</h3>
+        <p style="color:#aaa; font-size:0.9rem;">You are issuing: <b id="borrowItemName" style="color:#fff;"></b></p>
+        
+        <form action="{{ url_for('main.borrow_item') }}" method="POST">
+            <input type="hidden" name="item_id" id="borrowItemId">
+            
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:5px; font-weight:bold;">Borrower Name / Office</label>
+                <input type="text" name="borrower_name" required placeholder="e.g. Mr. Juan Dela Cruz" 
+                       style="width:100%; padding:10px; border-radius:5px; border:1px solid #444; background:#2b2b3b; color:white;">
+            </div>
+            
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:5px; font-weight:bold;">Quantity to Borrow</label>
+                <input type="number" name="borrow_qty" min="1" value="1" required 
+                       style="width:100%; padding:10px; border-radius:5px; border:1px solid #444; background:#2b2b3b; color:white;">
+            </div>
+            
+            <div style="text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" onclick="document.getElementById('borrowModal').style.display='none'" 
+                        style="padding:10px 20px; border-radius:8px; border:none; background:#444; color:white; cursor:pointer;">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        style="padding:10px 20px; border-radius:8px; border:none; background:#2563eb; color:white; cursor:pointer; font-weight:bold;">
+                    Confirm Borrow
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+
+    <script>
+        // FILTER DROPDOWN TOGGLE
+        document.addEventListener("DOMContentLoaded", () => {
+            const filterBtn = document.getElementById("filterBtn");
+            const filterDropdown = document.getElementById("filterDropdown");
+            const editItemModal = document.getElementById("editItemModal");
+            const editItemForm = document.getElementById("editItemForm");
+
+            if(filterBtn){
+                filterBtn.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    filterBtn.parentElement.classList.toggle("show");
+                });
+                window.addEventListener("click", (event) => {
+                    if (!filterBtn.contains(event.target) && !filterDropdown.contains(event.target)) {
+                        filterBtn.parentElement.classList.remove("show");
+                    }
+                });
+            }
+            
+            // Close modal if clicked outside
+            window.onclick = function(event) {
+                if (event.target == editItemModal) {
+                    editItemModal.style.display = 'none';
+                }
+            }
+        });
+
+        // MODAL FUNCTIONS
+        function openEditModal(item) {
+            const editItemModal = document.getElementById("editItemModal");
+            const editItemForm = document.getElementById("editItemForm");
+            const previewDiv = document.getElementById('current_image_preview');
+            const deleteCheckbox = document.getElementById('delete_image');
+
+            document.getElementById('edit_item_id').value = item.id;
+            deleteCheckbox.checked = false;
+
+            if (item.product_image) {
+                previewDiv.innerHTML = `<img src="/static/uploads/${item.product_image}" style="max-width:100px; display:block; margin-bottom:5px;">`;
+            } else {
+                previewDiv.innerHTML = '<em>No image currently attached.</em>';
+            }
+
+            document.getElementById('edit_product_name').value = item.product_name || '';
+            document.getElementById('edit_undertaking_property').value = item.undertaking_property || '';
+            document.getElementById('edit_quantity').value = item.quantity || 0;
+            document.getElementById('edit_unit').value = item.unit || '';
+            document.getElementById('edit_selling_price').value = item.selling_price || 0;
+            document.getElementById('edit_restock_threshold').value = item.restock_threshold || 5;
+            let dateVal = item.expiry_date || '';
+            if (dateVal && dateVal.includes('T')) dateVal = dateVal.split('T')[0];
+            document.getElementById('edit_expiry_date').value = dateVal;
+
+            editItemForm.action = `/edit_item/${item.id}`;
+            editItemModal.style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById("editItemModal").style.display = 'none';
+        }
+
+        // PRINT FUNCTION
+// PRINT FUNCTION
+// PRINT FUNCTION
+function printInventorySlip(itemId) {
+    fetch(`/get_item_data_for_print/${itemId}`)
+        .then(response => response.json())
+        .then(item => {
+            if (item) {
+                const printArea = document.getElementById('printSlipArea');
+                
+                // Logic to format date
+                const dateObj = new Date(item.expiry_date);
+                const dateString = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+
+                // Data handling
+
+                // Money Formatting
+                const itemAmount = item.selling_price !== null ? item.selling_price : 0;
+                const itemTotal = itemAmount * (item.quantity || 0);
+
+                const qtyToPrint = item.quantity || 0;
+
+                // Image Logic
+                let imageHtml = '';
+                if (item.product_image) {
+                    imageHtml = `<div style="text-align:center; margin-top:40px;">
+                                    <img src="/static/uploads/${item.product_image}" style="max-width: 150px; max-height: 150px; object-fit: contain;">
+                                 </div>`;
+                }
+
+                printArea.innerHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Custodian Slip</title>
+    <style>
+        * { box-sizing: border-box; 
+          }
+        /* --- PRINT SETTINGS --- */
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            
+            @page {
+                size: auto; 
+                margin: 0; 
+            }
+
+            #print-area {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 9999;
+                background: white;
+                padding: 100px; /* 100px Margin */
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        /* --- SCREEN SETTINGS --- */
+        @media screen {
+            body { background-color: #f0f0f0; }
+            #print-area {
+                width: 210mm; 
+                min-height: 297mm; 
+                background: white;
+                margin: 20px auto;
+                padding: 100px;     
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        /* --- GENERAL STYLES --- */
+        .ics-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            color: black;
+        }
+
+        .top-header { flex-shrink: 0; }
+        .top-right-appendix { text-align: right; font-style: italic; font-size: 10pt; margin-bottom: 10px; }
+        .ics-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 20px; text-transform: uppercase; }
+        
+        .header-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10pt; font-weight: bold; }
+        .header-row { display: flex; align-items: flex-end; }
+        .label { width: 60px; }
+        .value { border-bottom: 1px solid black; width: 220px; padding-left: 5px;}
+        .ics-label { width: 60px; text-align: right; margin-right: 10px;}
+        
+        /* Adjusted width for ICS Value to fit longer numbers if needed */
+        .ics-value { border-bottom: 1px solid black; width: 200px; text-align: center;}
+
+        /* --- TABLE STYLES --- */
+        .table-wrapper {
+            flex-grow: 1; 
+            display: flex;
+            flex-direction: column;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .ics-table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse; 
+            font-size: 10pt;
+            table-layout: fixed; 
+        }
+
+        .ics-table th, 
+        .ics-table td {
+            border: 1px solid black; 
+            padding: 5px;
+            text-align: center;
+        }
+
+        .ics-table th {
+            font-weight: bold;
+            height: 40px; 
+            vertical-align: middle;
+        }
+        .main-row { height: 100%; } 
+
+        .main-row td {
+            vertical-align: top; 
+            padding-top: 15px;
+            
+        }
+
+        /* Footer */
+        .footer-section {
+            flex-shrink: 0;
+            width: 100%;
+            height: 160px;
+            border: 1px solid black;
+            border-top: none; 
+            display: flex;
+            font-size: 10pt;
+        }
+        .footer-box {
+            flex: 1;
+            padding: 10px;
+            border-right: 1px solid black;
+            display: flex;
+            flex-direction: column;
+        }
+        .footer-box:last-child { border-right: none; }
+
+/* 1. Center the entire block */
+.signature-area {
+    text-align: center;
+    margin-top: auto;
+}
+
+/* 2. Style the Title/Position (The underlined part) */
+.position-title {
+    font-weight: bold;
+    font-size: 8pt;
+    text-transform: uppercase;
+    
+    /* Create the line */
+    border-bottom: 1px solid black;
+    
+    /* 'inline-block' allows us to set a width, but lets it be centered */
+    display: inline-block;
+    
+    /* CRITICAL: Ensures both sides have the same line length, even if text is short */
+    min-width: 200px; 
+    
+    /* CRITICAL: Allows long text (Left side) to wrap to two lines */
+    white-space: normal; 
+    
+    margin-top: 15px; /* Space between Name and Position */
+    padding-bottom: 2px;
+}
+
+/* 3. Style the Labels (Received by, Position/Office, etc.) */
+.sub-text {
+    font-size: 8pt;
+    
+    /* CRITICAL: display: block forces this text to drop BELOW the line */
+    display: block; 
+    
+    margin-top: 2px;
+}
+
+/* 4. Style the Name and Date lines */
+.signature-line, .date-line {
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid black;
+    display: inline-block;
+    min-width: 200px; /* Matches the position width */
+    margin-bottom: 2px;
+}
+
+        /* Column Widths */
+        .col-qty { width: 11%; }
+        .col-unit { width: 8%; }
+        .col-amount { width: 12%; }
+        .col-desc { width: 35%; }
+        .col-item-no { width: 17%; }
+        .col-life { width: 12%; }
+    </style>
+</head>
+<body>
+
+    <div id="print-area">
+        <div class="ics-container">
+            <!-- HEADER -->
+            <div class="top-header">
+                <div class="top-right-appendix">Appendix 52</div>
+                <div class="ics-title">INVENTORY CUSTODIAN SLIP</div>
+
+                <div class="header-info">
+                    <div class="header-left">
+                        <div class="header-row">
+                            <span class="label">LGU:</span> 
+                            <span class="value">PADRE GARCIA</span>
+                        </div>
+                        <div class="header-row">
+                            <span class="label">Fund:</span> 
+                            <span class="value">GENERAL FUND</span>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="header-row">
+                            <span class="ics-label">ICS No:</span> 
+                            <!-- ICS No uses item ID -->
+                            <span class="ics-value">${item.id}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLE -->
+            <div class="table-wrapper">
+                <table class="ics-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="col-qty">Quantity</th>
+                            <th rowspan="2" class="col-unit">Unit</th>
+                            <th colspan="2">Amount</th>
+                            <th rowspan="2" class="col-desc">Description</th>
+                            <th rowspan="2" class="col-item-no">Inventory Item No.</th>
+                            <th rowspan="2" class="col-life">Estimated Useful Life</th>
+                        </tr>
+                        <tr>
+                            <th class="col-amount">Unit Cost</th>
+                            <th class="col-amount">Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="main-row">
+                            <td>${qtyToPrint}</td>
+                            <td>UNIT</td>
+                            <td>₱${itemAmount}</td>
+                            <td>₱${itemTotal}</td>
+                            <td style="text-align: left; padding: 15px 5px;">
+                                <div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+                                    ${item.product_name}
+                                </div>
+                                <div style="text-align: center;">
+                                    ${imageHtml}
+                                </div>
+                            </td>
+                            <td></td>
+                            <td>${item.unit || ''}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="footer-section">
+                <div class="footer-box">
+                    <div>Received from:</div>
+                    <div class="signature-area">
+                        <span class="signature-line">JAY PRE V. ENDAYA</span><br>
+                        <span class="sub-text">Signature Over Printed Name</span>
+                        <div class="position-title">PROPERTY MANAGEMENT COORDINATOR/PGPC-GSO</div>
+                        <span class="sub-text">Position/Office</span>
+                        <br>
+                        <span class="date-line">${dateString}</span><br>
+                        <span class="sub-text">Date</span>
+                    </div>
+                </div>
+
+                <div class="footer-box">
+                    <div>Received by:</div>
+                    <div class="signature-area">
+                        <span class="signature-line"></span><br>
+                        <span class="sub-text">Signature Over Printed Name</span>
+                        <div class="position-title"></div>
+                        <span class="sub-text">Position/Office</span>
+                        <br>
+                        <span class="date-line">${dateString}</span><br>
+                        <span class="sub-text">Date</span>
+                    </div>
+                </div>
+            </div>
+            <div style="font-size: 8pt; font-style: italic; margin-top: 5px;">For Use of Supply and/or Property Division/Unit</div>
+        </div>
+    </div>
+
+</body>
+</html>
+                `;
+                window.print();
+            } else {
+                alert('Could not retrieve item data for printing.');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching item for print:', error);
+            alert('Error fetching item data for printing.');
+        });
+}
+
+ // Function to open the modal
+    function openImageModal(imageUrl, captionText) {
+        var modal = document.getElementById("fullImageModal");
+        var modalImg = document.getElementById("img01");
+        var caption = document.getElementById("image-caption");
+        
+        modal.style.display = "flex"; // Show the modal
+        modalImg.src = imageUrl;      // Set the image source
+        caption.innerHTML = captionText; // Set the text below image
+    }
+
+    // Function to close the modal
+    function closeImageModal() {
+        document.getElementById("fullImageModal").style.display = "none";
+    }
+    
+    // Prevent closing when clicking on the image itself (optional)
+    document.getElementById("img01").onclick = function(e) {
+        e.stopPropagation();
+    }
+
+// 1. PREPARE DATA
+const inventoryData = [
+    {% for item in items %}
+    {
+        date: "{{ item.expiry_date.strftime('%Y-%m-%d') if item.expiry_date else '' }}",
+        desc: {{ item.product_name | tojson | default('""') }},
+        life: {{ item.unit | tojson | default('""') }},
+        rQty: {{ item.quantity if item.quantity else 0 }},
+        amount: {{ item.selling_price if item.selling_price else 0 }},
+        undertaking: {{ item.undertaking_property | tojson | default('""') }}
+    },
+    {% endfor %}
+];
+
+async function exportToExcel() {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Inventory');
+
+    // --- A. DEFINE COLUMNS & WIDTHS ---
+    worksheet.columns = [
+        { key: 'date', width: 14 },
+        { key: 'desc', width: 35 },
+        { key: 'undertaking', width: 22 },
+        { key: 'life', width: 12 },
+        { key: 'rQty', width: 12 },
+        { key: 'amount', width: 18 },
+    ];
+
+    // --- B. ADD HEADER ROW ---
+    const headerValues = [
+        'EXPIRY DATE', 'PRODUCT NAME', 'CATEGORY', 'UNIT', 'QUANTITY', 'SELLING PRICE'
+    ];
+    
+    // CHANGED: getRow(2) -> getRow(1)
+    const headerRow = worksheet.getRow(1);
+    headerRow.values = headerValues;
+    headerRow.height = 20; 
+
+    headerRow.eachCell((cell) => {
+        cell.fill = {
+            type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' }
+        };
+        cell.font = {
+            name: 'Century Gothic', color: { argb: 'FFFFFFFF' }, bold: true, size: 9
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FF9BC2E6' } },
+            left: { style: 'thin', color: { argb: 'FF9BC2E6' } },
+            bottom: { style: 'thin', color: { argb: 'FF9BC2E6' } },
+            right: { style: 'thin', color: { argb: 'FF9BC2E6' } }
+        };
+    });
+
+    worksheet.autoFilter = 'A1:F1';
+
+    // --- D. ADD DATA ROWS ---
+    inventoryData.forEach((item) => {
+        const row = worksheet.addRow(item);
+        
+        row.eachCell((cell, colNumber) => {
+            cell.font = { name: 'Century Gothic', size: 9 };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            
+            cell.border = {
+                top: { style: 'thin', color: { argb: 'FFD9D9D9' } }, 
+                left: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+                bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+                right: { style: 'thin', color: { argb: 'FFD9D9D9' } }
+            };
+
+            if (colNumber === 6) {
+                cell.numFmt = '#,##0.00';
+                cell.alignment = { vertical: 'middle', horizontal: 'right' };
+            }
+            if (colNumber === 5) {
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            }
+        });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, 'PGPC_Inventory_List.xlsx');
+}
+
+// --- DOWNLOAD IMPORT TEMPLATE ---
+async function downloadImportTemplate() {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Inventory Import');
+
+    // Columns match the Add Product form exactly
+    const headers = [
+        'Product Name',
+        'Category',
+        'Quantity',
+        'Unit',
+        'Selling Price (PHP)',
+        'Restock Threshold',
+        'Expiry Date',
+        'Product Image (Filename)'
+    ];
+    const columnWidths = [35, 22, 12, 12, 22, 20, 16, 28];
+
+    worksheet.columns = headers.map((header, i) => ({
+        header,
+        key: header,
+        width: columnWidths[i]
+    }));
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+    });
+    headerRow.height = 28;
+
+    // Sample row showing expected format
+    const sampleRow = worksheet.addRow([
+        'Coca-Cola 1.5L',
+        'Beverages',
+        24,
+        'bottle',
+        65.00,
+        10,
+        '2025-12-31',
+        'cocacola.jpg'
+    ]);
+    sampleRow.eachCell(cell => {
+        cell.font = { italic: true, color: { argb: 'FF808080' } };
+        cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+    });
+
+    // Reference sheet — category, unit options, and image instructions
+    const notesSheet = workbook.addWorksheet('Reference');
+    notesSheet.getCell('A1').value = 'Category Options';
+    notesSheet.getCell('B1').value = 'Unit Options';
+    notesSheet.getCell('C1').value = 'Product Image Notes';
+    ['A1', 'B1', 'C1'].forEach(addr => {
+        notesSheet.getCell(addr).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        notesSheet.getCell(addr).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+    });
+    ['Snacks','Beverages','Dairy','Canned Food','Instant Noodles','Candy','Shampoo'].forEach((cat, i) => {
+        notesSheet.getCell(`A${i+2}`).value = cat;
+    });
+    ['pcs','box','bottle','kg','g','L','mL','pack','sachet','can'].forEach((unit, i) => {
+        notesSheet.getCell(`B${i+2}`).value = unit;
+    });
+    [
+        'Enter the image filename only (e.g. cocacola.jpg)',
+        'Supported formats: jpg, jpeg, png, gif, webp',
+        'Column H is optional — leave blank if no image',
+        'The filename must match an image already uploaded to the system'
+    ].forEach((note, i) => {
+        notesSheet.getCell(`C${i+2}`).value = note;
+        notesSheet.getCell(`C${i+2}`).font = { color: { argb: 'FF374151' } };
+    });
+    notesSheet.getColumn('A').width = 22;
+    notesSheet.getColumn('B').width = 12;
+    notesSheet.getColumn('C').width = 52;
+
+    // Format columns
+    worksheet.getColumn(5).numFmt = '#,##0.00'; // Selling Price
+    worksheet.getColumn(7).numFmt = 'yyyy-mm-dd'; // Expiry Date
+    worksheet.autoFilter = { from: 'A1', to: 'H1' };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, 'PGPC_Inventory_Import_Template.xlsx');
+}
+
+// --- IMPORT FUNCTION ---
+async function handleImportFile(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    // 1. Confirm Action
+    if(!confirm("Are you sure you want to import this file? This will add items to your database.")) {
+        inputElement.value = ''; // Reset input
+        return;
+    }
+
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const arrayBuffer = await file.arrayBuffer();
+        await workbook.xlsx.load(arrayBuffer);
+
+        const worksheet = workbook.getWorksheet(1); // Get the first sheet
+        const itemsToSave = [];
+
+        // 2. Loop through rows (Start at Row 2, because Row 1 is the Header)
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip Header Row
+
+            // 3. Map Excel Columns to Database Fields (matches Add Product form)
+            // A=Product Name, B=Category, C=Quantity, D=Unit, E=Selling Price, F=Restock Threshold, G=Expiry Date, H=Image Filename
+            let expiryDate = row.getCell(7).value;
+            if (expiryDate && typeof expiryDate === 'object' && expiryDate instanceof Date) {
+                expiryDate = expiryDate.toISOString().split('T')[0];
+            }
+            const rowData = {
+                product_name: row.getCell(1).text,          // Column A - Product Name
+                undertaking_property: row.getCell(2).text,  // Column B - Category
+                quantity: row.getCell(3).value || 0,        // Column C - Quantity
+                unit: row.getCell(4).text,                  // Column D - Unit
+                selling_price: row.getCell(5).value || 0,   // Column E - Selling Price
+                restock_threshold: row.getCell(6).value || 5, // Column F - Restock Threshold
+                expiry_date: expiryDate || null,             // Column G - Expiry Date
+                product_image: row.getCell(8).text || null  // Column H - Image Filename
+            };
+
+            itemsToSave.push(rowData);
+        });
+
+        // 4. Send Data to Flask Backend
+        if (itemsToSave.length > 0) {
+            uploadDataToServer(itemsToSave);
+        } else {
+            alert("The file appears to be empty.");
+        }
+
+    } catch (error) {
+        console.error("Error reading file:", error);
+        alert("Error reading the Excel file. Please make sure it follows the correct format.");
+    } finally {
+        inputElement.value = ''; // Reset input so same file can be selected again if needed
+    }
+}
+
+function uploadDataToServer(data) {
+    // Show a loading state (optional)
+    const btn = document.querySelector('.btn-import');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+    btn.disabled = true;
+
+    fetch('/import_excel_data', { // <--- This must match your Flask Route
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items: data })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert(result.message);
+            location.reload(); // Reload page to show new items
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving data.');
+    })
+    .finally(() => {
+        // Restore button state
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Filter panel toggle
+function toggleFilterPanel(e) {
+    e.stopPropagation();
+    populateCategoryDropdown();
+    document.getElementById('filterPanelOverlay').classList.toggle('open');
+}
+
+function closeFilterPanel() {
+    const overlay = document.getElementById('filterPanelOverlay');
+    if (overlay) overlay.classList.remove('open');
+}
+
+function closeFilterPanelOnOverlay(e) {
+    // Close only if clicking the overlay background, not the panel itself
+    if (e.target.id === 'filterPanelOverlay') {
+        closeFilterPanel();
+    }
+}
+
+function openFilterModal() { toggleFilterPanel({ stopPropagation: () => {} }); }
+function closeFilterModal() { closeFilterPanel(); }
+
+function populateCategoryDropdown() {
+    const sel = document.getElementById('filterCategory');
+    sel.innerHTML = '<option value="">All Categories</option>';
+    const preset = ['Canned Food', 'Shampoo', 'Beverages', 'Candy', 'Instant Noodles'];
+    const fromData = new Set();
+    // Pull from table rows
+    document.querySelectorAll('.item-row').forEach(r => {
+        const c = r.getAttribute('data-category');
+        if (c && c.trim()) fromData.add(c.trim());
+    });
+    // Pull from cards too
+    document.querySelectorAll('.product-card').forEach(c => {
+        const cat = c.getAttribute('data-category');
+        if (cat && cat.trim()) fromData.add(cat.trim());
+    });
+    const all = new Set([...preset, ...fromData]);
+    Array.from(all).sort().forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        sel.appendChild(o);
+    });
+}
+
+function applyFilters() {
+    // Sync hidden radios from dropdowns (keeps updateFilterBadge working)
+    const stockVal  = document.getElementById('balFilterSelect').value;
+    const expiryVal = document.getElementById('expiryFilterSelect').value;
+    document.querySelector(`input[name="balFilter"][value="${stockVal}"]`).checked = true;
+    document.querySelector(`input[name="expiryFilter"][value="${expiryVal}"]`).checked = true;
+
+    const catVal   = document.getElementById('filterCategory').value;
+    const priceMin = parseFloat(document.getElementById('filterPriceMin').value) || 0;
+    const priceMax = parseFloat(document.getElementById('filterPriceMax').value) || Infinity;
+
+    let visible = 0;
+
+    // --- Filter TABLE rows ---
+    document.querySelectorAll('.item-row').forEach(row => {
+        const bal     = parseFloat(row.getAttribute('data-balance')) || 0;
+        const reorder = parseFloat(row.getAttribute('data-reorder')) || 5;
+        const expiry  = row.getAttribute('data-expiry') || 'none';
+        const cat     = (row.getAttribute('data-category') || '').trim();
+        const price   = parseFloat(row.getAttribute('data-price')) || 0;
+
+        let show = true;
+        if (stockVal === 'positive' && bal <= 0) show = false;
+        if (stockVal === 'low'      && (bal <= 0 || bal > reorder)) show = false;
+        if (stockVal === 'zero'     && bal > 0) show = false;
+        if (expiryVal !== 'all'    && expiry !== expiryVal) show = false;
+        if (catVal                 && cat.toLowerCase() !== catVal.toLowerCase()) show = false;
+        if (price < priceMin || price > priceMax) show = false;
+
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    // --- Filter CARD items ---
+    document.querySelectorAll('.product-card').forEach(card => {
+        const bal     = parseFloat(card.getAttribute('data-balance')) || 0;
+        const reorder = parseFloat(card.getAttribute('data-reorder')) || 5;
+        const expiry  = card.getAttribute('data-expiry') || 'none';
+        const cat     = (card.getAttribute('data-category') || '').trim();
+        const price   = parseFloat(card.getAttribute('data-price')) || 0;
+
+        let show = true;
+        if (stockVal === 'positive' && bal <= 0) show = false;
+        if (stockVal === 'low'      && (bal <= 0 || bal > reorder)) show = false;
+        if (stockVal === 'zero'     && bal > 0) show = false;
+        if (expiryVal !== 'all'    && expiry !== expiryVal) show = false;
+        if (catVal                 && cat.toLowerCase() !== catVal.toLowerCase()) show = false;
+        if (price < priceMin || price > priceMax) show = false;
+
+        card.style.display = show ? '' : 'none';
+    });
+
+    document.getElementById('summaryCount').innerText = 'Showing ' + visible + ' item(s)';
+    updateFilterBadge();
+    closeFilterPanel();
+}
+
+function resetFilters() {
+    document.getElementById('balFilterSelect').value = 'all';
+    document.getElementById('expiryFilterSelect').value = 'all';
+    document.querySelector('input[name="balFilter"][value="all"]').checked = true;
+    document.querySelector('input[name="expiryFilter"][value="all"]').checked = true;
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterPriceMin').value = '';
+    document.getElementById('filterPriceMax').value = '';
+    document.querySelectorAll('.item-row').forEach(r => r.style.display = '');
+    document.querySelectorAll('.product-card').forEach(c => c.style.display = '');
+    document.getElementById('summaryCount').innerText = 'Showing {{ items|length }} item(s)';
+    updateFilterBadge();
+    closeFilterPanel();
+}
+
+function updateFilterBadge() {
+    const badge     = document.getElementById('filterActiveBadge');
+    const filterBtn = document.getElementById('filterBtn');
+    const stockVal  = document.getElementById('balFilterSelect').value;
+    const expiryVal = document.getElementById('expiryFilterSelect').value;
+    const catVal    = document.getElementById('filterCategory').value;
+    const priceMin  = document.getElementById('filterPriceMin').value;
+    const priceMax  = document.getElementById('filterPriceMax').value;
+    const active = stockVal !== 'all' || expiryVal !== 'all' || catVal || priceMin || priceMax;
+    badge.style.display = active ? 'inline-flex' : 'none';
+    filterBtn.style.borderColor = active ? '#2563eb' : '';
+    filterBtn.style.color = active ? '#60a5fa' : '';
+}
+
+// keep legacy names so nothing else breaks
+function openAdvancedFilterModal() { openFilterModal(); }
+function resetAdvancedFilters() { resetFilters(); }
+function applyAdvancedFilters() { applyFilters(); }
+
+
+
+
+// --- DISPOSAL LOGIC ---
+    function openDisposalModal(itemId, qty) {
+        const safeQty = qty ? parseFloat(qty) : 0;
+        document.getElementById('disposeItemId').value = itemId;
+        const qtyInput = document.getElementById('dispose_qty');
+        const displaySpan = document.getElementById('qtyDisplay');
+        qtyInput.max = safeQty;
+        qtyInput.value = safeQty > 0 ? 1 : 0;
+        displaySpan.innerText = safeQty;
+        displaySpan.style.color = safeQty > 0 ? '#cbd5e1' : 'red';
+        document.getElementById('disposalModal').style.display = 'flex';
+    }
+
+    function updateMaxQty() {}
+
+
+
+    function closeDisposalModal() {
+        document.getElementById('disposalModal').style.display = 'none';
+    }
+    
+// MASTER CLOSER: Closes any modal if clicked outside
+window.onclick = function(event) {
+    const editModal = document.getElementById("editItemModal");
+    const disposalModal = document.getElementById("disposalModal");
+    const imageModal = document.getElementById("fullImageModal");
+
+    if (event.target == editModal) {
+        closeEditModal();
+    }
+    if (event.target == disposalModal) {
+        closeDisposalModal();
+    }
+    if (event.target == imageModal) {
+        closeImageModal();
+    }
+    if (event.target == document.getElementById("deleteQuantityModal")) {
+        closeDeleteQuantityModal();
+    }
+}
+
+    // --- BULK DELETE LOGIC ---
+
+// 1. Toggle "Select All"
+function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => {
+        // Only check visible rows (respects filters/search)
+        if(cb.closest('tr').style.display !== 'none') {
+            cb.checked = source.checked;
+        }
+    });
+    toggleBulkActions();
+}
+
+// 2. Show/Hide Delete Button based on selection
+function toggleBulkActions() {
+    const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+    const bulkDiv = document.getElementById('bulkActions');
+    
+    if (checkboxes.length > 0) {
+        bulkDiv.style.display = 'inline-block';
+    } else {
+        bulkDiv.style.display = 'none';
+        // Uncheck master if no children are checked
+        document.getElementById('selectAll').checked = false;
+    }
+}
+
+// 3. Submit the Form
+function confirmBulkDelete() {
+    const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+    const count = checkboxes.length;
+
+    if (count === 0) return;
+
+    if (confirm(`Are you sure you want to delete ${count} items? This action cannot be undone.`)) {
+        const container = document.getElementById('hiddenInputsContainer');
+        container.innerHTML = ''; // Clear previous
+
+        // Create hidden inputs for the form
+        checkboxes.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'item_ids';
+            input.value = cb.value;
+            container.appendChild(input);
+        });
+
+        document.getElementById('bulkDeleteForm').submit();
+    }
+}
+
+/* --- ACTION MENU LOGIC --- */
+
+// Toggle the specific menu clicked
+function toggleActionMenu(button) {
+    // 1. Close any OTHER open menus first
+    document.querySelectorAll('.action-menu').forEach(menu => {
+        if (menu !== button.parentElement) {
+            menu.classList.remove('active');
+        }
+    });
+
+    // 2. Toggle the one we clicked
+    button.parentElement.classList.toggle('active');
+    
+    // Stop the click from immediately triggering the window close event
+    event.stopPropagation();
+}
+
+// Close menu when clicking anywhere else on the screen
+window.addEventListener('click', function(e) {
+    // If we click outside an action-menu, close all of them
+    if (!e.target.closest('.action-menu')) {
+        document.querySelectorAll('.action-menu').forEach(menu => {
+            menu.classList.remove('active');
+        });
+    }
+});
+
+
+
+
+
+// --- DELETE QUANTITY LOGIC ---
+
+function openDeleteQuantityModal(itemId, currentQty) {
+    // Set the ID
+    document.getElementById('del_item_id').value = itemId;
+    
+    // Display current quantity for reference
+    document.getElementById('del_display_qty').innerText = currentQty;
+    
+    // Set max on the input so they can't delete more than exists
+    const qtyInput = document.getElementById('del_qty_input');
+    qtyInput.max = currentQty;
+    qtyInput.value = 1; // Default to 1
+    qtyInput.disabled = false;
+    
+    // Reset Checkbox
+    document.getElementById('del_entire_record').checked = false;
+    
+    // Show Modal
+    document.getElementById('deleteQuantityModal').style.display = 'flex';
+}
+
+function closeDeleteQuantityModal() {
+    document.getElementById('deleteQuantityModal').style.display = 'none';
+}
+
+function toggleDeleteAll() {
+    const isChecked = document.getElementById('del_entire_record').checked;
+    const qtyInput = document.getElementById('del_qty_input');
+    
+    if (isChecked) {
+        qtyInput.disabled = true;
+        qtyInput.value = ''; // Clear value to indicate "All"
+    } else {
+        qtyInput.disabled = false;
+        qtyInput.value = 1;
+    }
+}
+
+
+
+function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+        
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
+
+    // Auto-close sidebar on mobile when a link is clicked
+    const navLinks = document.querySelectorAll('.nav-item');
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) {
+                toggleSidebar();
+            }
+        });
+    });
+
+    // Hide notif badge if already seen
+    (function() {
+        var badge = document.querySelector('.notif-badge');
+        if (!badge) return;
+        var currentIds = {{ notif_ids }};
+        var seenData = JSON.parse(localStorage.getItem('notif_seen_ids') || '{"low_stock":[],"expiring":[]}');
+        var seenIds = new Set([...(seenData.low_stock||[]),...(seenData.expiring||[])]);
+        var newCount = currentIds.filter(function(id){return !seenIds.has(id);}).length;
+        if (newCount <= 0) badge.style.display = 'none';
+        else badge.textContent = newCount;
+    })();
+
+    
+
+
+    // --- CARD VIEW TOGGLE ---
+    function toggleCardView() {
+        const sw = document.getElementById('toggleSwitch');
+        const label = document.getElementById('toggleLabel');
+        const isOn = sw.classList.toggle('on');
+        if (isOn) {
+            // ON = table view
+            document.body.classList.add('table-view-active');
+            label.textContent = 'Table View';
+        } else {
+            // OFF = card view (default)
+            document.body.classList.remove('table-view-active');
+            label.textContent = 'Card View';
+        }
+    }
+
+    // Script to handle the Borrow Modal
+    function openBorrowModal(id, name) {
+        document.getElementById('borrowItemId').value = id;
+        document.getElementById('borrowItemName').innerText = name;
+        
+        // Use Flex to center the modal
+        var modal = document.getElementById('borrowModal');
+        modal.style.display = 'flex';
+    }
+    
+    // Close modal if clicking outside the box
+    window.onclick = function(event) {
+        var modal = document.getElementById('borrowModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Disposal & Issues - PGPC Inventory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Convenience Store Logo">
+        <div class="brand-name">Convenient Store</div>
+        <div class="brand-subtitle">Inventory Management System</div>
+    </div>
+    <nav class="nav-menu">
+        <a href="{{ url_for('main.dashboard') }}" class="nav-item"><i class="fas fa-home"></i> <span>Dashboard</span></a>
+        <a href="{{ url_for('main.inventory_list') }}" class="nav-item"><i class="fas fa-layer-group"></i> <span>Inventory Lists</span></a>
+        <a href="{{ url_for('main.borrowed_items') }}" class="nav-item"><i class="fas fa-handshake"></i> <span>Borrowed Items</span></a>
+        <a href="{{ url_for('main.disposal_issues') }}" class="nav-item active"><i class="fas fa-exclamation-triangle"></i> <span>Disposal & Issues</span></a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-chart-pie"></i> <span>Reports</span></a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-cash-register"></i> <span>Sales</span></a>
+        <a href="{{ url_for('main.settings') }}" class="nav-item"><i class="fas fa-cog"></i> <span>Settings</span></a>
+    </nav>
+    <a href="{{ url_for('main.logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+</div>
+
+<div class="main-content">
+    <div class="page-header">
+        <h1>Disposal & Issues Management</h1>
+        <p>Manage disposed items and resolve issues</p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="{{ category }}" style="padding:15px; margin-bottom:20px; border-radius:10px; background:rgba(255,255,255,0.1); color:white;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Pending Disposals -->
+    <div style="background:var(--glass-bg); backdrop-filter:blur(15px); border:1px solid var(--glass-border); border-radius:16px; padding:25px; margin-bottom:25px;">
+        <h2 style="color:#fff; margin-top:0;">Pending Disposals ({{ disposal_logs|length }})</h2>
+        
+        {% if disposal_logs %}
+            {% for log, item in disposal_logs %}
+            <div style="background:rgba(220,38,38,0.1); border:1px solid rgba(220,38,38,0.3); border-radius:10px; padding:15px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h4 style="margin:0; color:#fca5a5;">{{ item.product_name }}</h4>
+                        <p style="margin:5px 0; color:#cbd5e1; font-size:0.9rem;">
+                            Status: {{ log.status_snapshot }} | Qty: {{ log.quantity }}
+                        </p>
+                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">{{ log.remarks }}</p>
+                    </div>
+                    <div>
+                        <button onclick="openResolveModal('{{ log.id }}')" 
+                                style="background:#10b981; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">
+                            <i class="fas fa-check"></i> Resolve
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#94a3b8; text-align:center; padding:20px;">No pending disposal issues.</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Transactions -->
+    <div style="background:var(--glass-bg); backdrop-filter:blur(15px); border:1px solid var(--glass-border); border-radius:16px; padding:25px;">
+        <h2 style="color:#fff; margin-top:0;">Recent Transactions</h2>
+        
+        {% if all_transactions %}
+            <div style="max-height:400px; overflow-y:auto;">
+                {% for log, item in all_transactions[:20] %}
+                <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding:10px 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <span style="color:#fff; font-weight:500;">{{ item.product_name }}</span>
+                            <span style="color:#94a3b8; margin-left:10px;">{{ log.event_type }}</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:#cbd5e1; font-size:0.8rem;">{{ log.event_date.strftime('%Y-%m-%d %H:%M') }}</div>
+                            <div style="color:#94a3b8; font-size:0.8rem;">Qty: {{ log.quantity }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:#94a3b8; text-align:center; padding:20px;">No transaction history available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Resolve Modal -->
+<div id="resolveModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#1e1e2d; width:400px; padding:30px; border-radius:15px; border:1px solid rgba(255,255,255,0.1); color:white;">
+        <h3 style="margin-top:0;">Resolve Disposal Issue</h3>
+        
+        <form action="{{ url_for('main.resolve_disposal') }}" method="POST">
+            <input type="hidden" id="resolveHistoryId" name="history_id">
+            
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:5px; font-weight:bold;">Resolution Type</label>
+                <select name="resolution_type" required style="width:100%; padding:10px; border-radius:5px; border:1px solid #444; background:#2b2b3b; color:white;">
+                    <option value="Restored">Item Restored</option>
+                    <option value="Replaced">Item Replaced</option>
+                    <option value="Written Off">Written Off</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:5px; font-weight:bold;">Notes</label>
+                <textarea name="notes" required placeholder="Resolution details..." rows="3"
+                          style="width:100%; padding:10px; border-radius:5px; border:1px solid #444; background:#2b2b3b; color:white;"></textarea>
+            </div>
+            
+            <div style="text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" onclick="closeResolveModal()" 
+                        style="padding:10px 20px; border-radius:8px; border:none; background:#444; color:white; cursor:pointer;">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        style="padding:10px 20px; border-radius:8px; border:none; background:#10b981; color:white; cursor:pointer; font-weight:bold;">
+                    Resolve Issue
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openResolveModal(historyId) {
+    document.getElementById('resolveHistoryId').value = historyId;
+    document.getElementById('resolveModal').style.display = 'flex';
+}
+
+function closeResolveModal() {
+    document.getElementById('resolveModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    var modal = document.getElementById('resolveModal');
+    if (event.target == modal) {
+        modal.style.display = "none";
+    }
+}
+</script>
+
+</body>
+</html>

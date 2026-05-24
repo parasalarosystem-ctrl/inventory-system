@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Borrowed Items - PGPC Inventory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    
+    <style>
+        /* Specific styles for Borrowed Page */
+        .glass-container {
+            background: rgba(30, 30, 45, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            min-height: 80vh;
+        }
+        .borrow-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .borrow-info h4 { margin: 0; color: #fff; font-size: 1.1rem; }
+        .borrow-info p { margin: 5px 0 0; color: #cbd5e1; font-size: 0.9rem; }
+        .borrower-tag {
+            background: rgba(245, 158, 11, 0.15); color: #fbbf24;
+            padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 0.85rem;
+            display: inline-block; margin-top: 5px;
+        }
+        .btn-return {
+            background: rgba(16, 185, 129, 0.15); color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 10px 20px; border-radius: 8px; cursor: pointer;
+            font-weight: 600; transition: 0.2s;
+        }
+        .btn-return:hover { background: #10b981; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Convenience Store Logo">
+        <div class="brand-name">Convenient Store</div>
+        <div class="brand-subtitle">Inventory Management System</div>
+    </div>
+    <nav class="nav-menu">
+        <a href="{{ url_for('main.dashboard') }}" class="nav-item"><i class="fas fa-home"></i> <span>Dashboard</span></a>
+        <a href="{{ url_for('main.inventory_list') }}" class="nav-item"><i class="fas fa-layer-group"></i> <span>Inventory Lists</span></a>
+        <a href="{{ url_for('main.borrowed_items') }}" class="nav-item active"><i class="fas fa-handshake"></i> <span>Borrowed Items</span></a>
+        <a href="{{ url_for('main.disposal_issues') }}" class="nav-item"><i class="fas fa-exclamation-triangle"></i> <span>Disposal & Issues</span></a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-chart-pie"></i> <span>Reports</span></a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-cash-register"></i> <span>Sales</span></a>
+        <a href="{{ url_for('main.settings') }}" class="nav-item"><i class="fas fa-cog"></i> <span>Settings</span></a>
+    </nav>
+    <a href="{{ url_for('main.logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+</div>
+
+<div class="main-content">
+    <div class="page-header">
+        <h1>Borrowed Items Log</h1>
+        <p>Manage items currently issued to employees or offices.</p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="{{ category }}" style="padding:15px; margin-bottom:20px; border-radius:10px; background:rgba(255,255,255,0.1); color:white;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="glass-container">
+        {% if borrowed_records %}
+            {% for borrow, item in borrowed_records %}
+            <div class="borrow-card">
+                <div class="borrow-info">
+                    <h4>{{ item.product_name }}</h4>
+                    <div class="borrower-tag">
+                        <i class="fas fa-user"></i> {{ borrow.borrower_name }}
+                    </div>
+                    <span style="color:#94a3b8; font-size:0.8rem; margin-left:10px;">
+                        Date Issued: {{ borrow.date_borrowed.strftime('%Y-%m-%d') }} | Qty: {{ borrow.quantity }}
+                    </span>
+                </div>
+                
+                <div style="display:flex; gap:10px; align-items:center;">
+                    
+                    <!-- PRINT SLIP BUTTON -->
+                    <button type="button" class="btn-print-slip"
+                            onclick="printBorrowerSlip('{{ item.product_name }}', '{{ borrow.borrower_name }}', '{{ borrow.date_borrowed }}')"
+                            style="background:rgba(59, 130, 246, 0.15); color:#60a5fa; border:1px solid rgba(59, 130, 246, 0.2); padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:600;">
+                        <i class="fas fa-print"></i> Print Slip
+                    </button>
+
+                    <!-- RETURN BUTTON -->
+                    <form action="{{ url_for('main.return_item', borrow_id=borrow.id) }}" method="POST">
+                        <button type="submit" class="btn-return" title="Mark as Returned">
+                            <i class="fas fa-undo"></i> Return
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align:center; padding:50px; color:#94a3b8;">
+                <i class="fas fa-check-circle" style="font-size:3rem; margin-bottom:15px; opacity:0.5;"></i>
+                <h3>No items are currently borrowed.</h3>
+                <p>All assets are accounted for in the warehouse.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- JAVASCRIPT: PRINT MIXED FORMAT -->
+<script>
+function printBorrowerSlip(desc, borrower, date) {
+    
+    // Format Date
+    const d = new Date(date);
+    const dateString = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+
+    // 1. Create invisible iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    // 2. Write HTML
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Borrower Slip</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; padding: 40px; }
+        
+        .slip-container { 
+            border: 2px solid #000; 
+            padding: 30px; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            min-height: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- OLD HEADER STYLE --- */
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .header h1 { font-size: 18px; margin: 0; text-transform: uppercase; }
+        .header h2 { font-size: 14px; margin: 5px 0; font-weight: normal; }
+        .header p { font-size: 12px; margin: 0; }
+        
+        .slip-title { 
+            text-align: center; font-size: 24px; font-weight: bold; 
+            margin: 20px 0; text-decoration: underline; 
+        }
+        
+        /* --- OLD BODY STYLE (Table List) --- */
+        .details-table { width: 100%; margin-bottom: 40px; border-collapse: collapse; margin-top: 30px; }
+        .details-table td { padding: 12px; font-size: 14px; vertical-align: top; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; width: 200px; }
+        .value { font-weight: bold; text-transform: uppercase; }
+        
+        .terms { 
+            font-size: 12px; font-style: italic; margin-bottom: 50px; 
+            text-align: justify; padding: 20px; border: 1px dashed #999; 
+            background: #f9f9f9;
+        }
+        
+        /* --- NEW FOOTER STYLE (Boxed Signatures) --- */
+        .footer-section {
+            width: 100%;
+            height: 160px;
+            border: 1px solid black;
+            display: flex;
+            font-size: 10pt;
+            margin-top: auto; /* Pushes footer to bottom */
+        }
+        .footer-box {
+            flex: 1;
+            padding: 10px;
+            border-right: 1px solid black;
+            display: flex;
+            flex-direction: column;
+        }
+        .footer-box:last-child { border-right: none; }
+
+        .signature-area { text-align: center; margin-top: auto; }
+        
+        .position-title {
+            font-weight: bold; font-size: 8pt; text-transform: uppercase;
+            border-bottom: 1px solid black; display: inline-block;
+            min-width: 200px; white-space: normal;
+            margin-top: 15px; padding-bottom: 2px;
+        }
+
+        .sub-text { font-size: 8pt; display: block; margin-top: 2px; }
+
+        .signature-line, .date-line {
+            font-weight: bold; text-transform: uppercase;
+            border-bottom: 1px solid black; display: inline-block;
+            min-width: 200px; margin-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slip-container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>Padre Garcia Provincial Chapter</h1>
+            <h2>Inventory & Property Management Division</h2>
+            <p>Padre Garcia, Batangas</p>
+        </div>
+
+        <div class="slip-title">EQUIPMENT BORROWER SLIP</div>
+
+        <!-- DETAILS (Old Format) -->
+        <table class="details-table">
+            <tr>
+                <td class="label">Date Issued:</td>
+                <td class="value">${dateString}</td>
+            </tr>
+            <tr>
+                <td class="label">Borrower Name/Office:</td>
+                <td class="value">${borrower}</td>
+            </tr>
+            <tr>
+                <td class="label">Item Description:</td>
+                <td class="value">${desc}</td>
+            </tr>
+            <tr>
+                <td class="label">Condition:</td>
+                <td class="value">GOOD / OPERATIONAL</td>
+            </tr>
+        </table>
+
+        <!-- TERMS (Old Format) -->
+        <div class="terms">
+            <strong>Terms of Usage:</strong> <br>
+            I hereby acknowledge receipt of the item(s) described above. I understand that I am financially and administratively liable for any loss or damage to this property while in my custody. I agree to return this item immediately upon demand or completion of the specific purpose for which it was borrowed.
+        </div>
+
+        <!-- FOOTER (New Boxed Format) -->
+        <div class="footer-section">
+            <!-- RECEIVED FROM -->
+            <div class="footer-box">
+                <div>Received from:</div>
+                <div class="signature-area">
+                    <span class="signature-line">JAY PRE V. ENDAYA</span><br>
+                    <span class="sub-text">Signature Over Printed Name</span>
+                    <div class="position-title">PROPERTY MANAGEMENT COORDINATOR/PGPC-GSO</div>
+                    <span class="sub-text">Position/Office</span>
+                    <br>
+                    <span class="date-line">${dateString}</span><br>
+                    <span class="sub-text">Date</span>
+                </div>
+            </div>
+
+            <!-- RECEIVED BY -->
+            <div class="footer-box">
+                <div>Received by:</div>
+                <div class="signature-area">
+                    <span class="signature-line">${borrower}</span><br>
+                    <span class="sub-text">Signature Over Printed Name</span>
+                    <div class="position-title">BORROWER / REQUESTING PARTY</div>
+                    <span class="sub-text">Position/Office</span>
+                    <br>
+                    <span class="date-line">${dateString}</span><br>
+                    <span class="sub-text">Date</span>
+                </div>
+            </div>
+        </div>
+        <div style="font-size: 8pt; font-style: italic; margin-top: 5px;">For Use of Supply and/or Property Division/Unit</div>
+    </div>
+</body>
+</html>
+    `);
+    doc.close();
+
+    // 3. Print
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+        iframe.contentWindow.print();
+    }, 500);
+}
+</script>
+
+</body>
+</html>

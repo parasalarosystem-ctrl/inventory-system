@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Inventory from Excel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 500px;
+            margin: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #555;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .form-group input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .form-actions button, .form-actions a {
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            text-align: center;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .form-actions .btn-submit {
+            background-color: #28a745; /* Green for import */
+            color: white;
+        }
+        .form-actions .btn-submit:hover {
+            background-color: #218838;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .form-actions .btn-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+        .form-actions .btn-cancel:hover {
+            background-color: #5a6268;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .flash {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .flash.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Import Inventory from Excel</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form action="{{ url_for('main.import_excel') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="excel_file">Select Excel File (.xlsx, .xls):</label>
+                <input type="file" id="excel_file" name="file" accept=".xlsx, .xls" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-submit"><i class="fas fa-upload"></i> Import Data</button>
+                <a href="{{ url_for('main.inventory_list') }}" class="btn-cancel"><i class="fas fa-times"></i> Cancel</a>
+            </div>
+        </form>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #777;">
+            Please ensure your Excel file has columns named exactly:
+            "Date", "Property No.", "Item Description", "Estimated Useful Life",
+            "Receipt Qty", "Amount", "Issued Qty", "Officer", "Position", "Undertaking Property".
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - Inventory System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        .page-header { margin-bottom: 25px; }
+        .page-header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .page-header p  { margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+        .notif-section {
+            background: rgba(30,30,45,0.6); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+            padding: 30px; margin-bottom: 25px;
+        }
+        .notif-section-title {
+            font-size: 1rem; font-weight: 700; color: #fff;
+            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+        }
+
+        /* Stock status badges */
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-out     { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-low     { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-ok      { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-expired { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-expiring{ background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+
+        .notif-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .notif-table th {
+            text-align: left; padding: 10px 15px; color: var(--text-muted);
+            font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .notif-table td { padding: 14px 15px; color: #e2e8f0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .notif-table tr:last-child td { border-bottom: none; }
+        .notif-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 10px; color: #34d399; display: block; }
+
+        /* Summary bar */
+        .summary-bar {
+            display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;
+        }
+        .summary-card {
+            flex: 1; min-width: 140px; padding: 18px 20px; border-radius: 12px;
+            background: rgba(30,30,45,0.6); border: 1px solid rgba(255,255,255,0.08);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .summary-card .s-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+        .summary-card .s-value { font-size: 1.6rem; font-weight: 700; }
+        .s-red    { color: #f87171; }
+        .s-orange { color: #fbbf24; }
+        .s-green  { color: #34d399; }
+        .s-purple { color: #c084fc; }
+
+        /* Expiration row highlight */
+        .row-highlight td {
+            background: rgba(192, 132, 252, 0.18) !important;
+            border-left: 3px solid #c084fc;
+        }
+        .btn-highlight {
+            background: none; border: none; cursor: pointer;
+            color: #c084fc; font-size: 0.85rem; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 0; transition: color 0.2s;
+        }
+        .btn-highlight:hover { color: #e879f9; }
+
+        /* ── Expiration Cards ── */
+        .exp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .exp-card {
+            border-radius: 14px;
+            padding: 18px 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(20,20,35,0.6);
+            display: flex; flex-direction: column; gap: 12px;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .exp-card:hover { transform: translateY(-3px); }
+        .exp-card::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 4px; height: 100%; border-radius: 14px 0 0 14px;
+        }
+        .exp-card.card-expired  { border-color: rgba(239,68,68,0.3); }
+        .exp-card.card-expired::before  { background: #ef4444; }
+        .exp-card.card-expiring { border-color: rgba(245,158,11,0.3); }
+        .exp-card.card-expiring::before { background: #f59e0b; }
+
+        .exp-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .exp-card-name { font-weight: 700; font-size: 0.95rem; color: #fff; line-height: 1.3; }
+        .exp-card-prop { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
+        .exp-status-pill {
+            flex-shrink: 0; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .pill-expired  { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .pill-expiring { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+
+        .exp-card-meta { display: flex; flex-direction: column; gap: 6px; }
+        .exp-meta-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; }
+        .exp-meta-label { color: #64748b; }
+        .exp-meta-value { color: #e2e8f0; font-weight: 600; }
+
+        /* Countdown bar */
+        .exp-bar-wrap { margin-top: 2px; }
+        .exp-bar-track {
+            height: 5px; border-radius: 99px;
+            background: rgba(255,255,255,0.07); overflow: hidden;
+        }
+        .exp-bar-fill {
+            height: 100%; border-radius: 99px;
+            transition: width 0.4s ease;
+        }
+        .fill-expired  { background: #ef4444; }
+        .fill-expiring { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+
+        .exp-countdown {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.82rem; margin-top: 4px;
+        }
+        .exp-countdown.overdue { color: #f87171; }
+        .exp-countdown.soon    { color: #fbbf24; }
+
+        .exp-card-footer { margin-top: auto; }
+        .exp-view-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; font-weight: 600; text-decoration: none;
+            padding: 6px 14px; border-radius: 8px; transition: background 0.2s;
+        }
+        .exp-view-btn.btn-expired  { color: #f87171; background: rgba(239,68,68,0.1); }
+        .exp-view-btn.btn-expired:hover  { background: rgba(239,68,68,0.2); }
+        .exp-view-btn.btn-expiring { color: #fbbf24; background: rgba(245,158,11,0.1); }
+        .exp-view-btn.btn-expiring:hover { background: rgba(245,158,11,0.2); }
+
+        /* ── Product Card Modal ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .product-card {
+            background: #1a1a2e; border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px; width: 100%; max-width: 420px;
+            padding: 28px; position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: cardIn 0.22s ease;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: scale(0.93) translateY(12px); }
+            to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+
+        .product-card-close {
+            position: absolute; top: 16px; right: 18px;
+            background: rgba(255,255,255,0.07); border: none; cursor: pointer;
+            color: #94a3b8; width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; transition: background 0.2s, color 0.2s;
+        }
+        .product-card-close:hover { background: rgba(239,68,68,0.2); color: #f87171; }
+
+        .product-card-img {
+            width: 80px; height: 80px; border-radius: 14px; object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.1); margin-bottom: 16px;
+        }
+        .product-card-img-placeholder {
+            width: 80px; height: 80px; border-radius: 14px;
+            background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; justify-content: center;
+            color: #475569; font-size: 1.8rem; margin-bottom: 16px;
+        }
+
+        .product-card-name { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .product-card-prop { font-size: 0.78rem; color: #64748b; margin-bottom: 16px; }
+
+        .product-card-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 14px 0; }
+
+        .product-card-rows { display: flex; flex-direction: column; gap: 10px; }
+        .product-card-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.88rem;
+        }
+        .pc-label { color: #64748b; display: flex; align-items: center; gap: 7px; }
+        .pc-label i { width: 14px; text-align: center; }
+        .pc-value { color: #e2e8f0; font-weight: 600; }
+        .pc-value.out   { color: #f87171; }
+        .pc-value.low   { color: #fbbf24; }
+        .pc-value.ok    { color: #34d399; }
+
+        .product-card-status {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="sidebar">
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Convenience Store Logo">
+        <div class="brand-name">Convenient Store</div>
+        <div class="brand-subtitle">Inventory Management System</div>
+    </div>
+    <nav class="nav-menu">
+        <a href="{{ url_for('main.dashboard') }}" class="nav-item"><i class="fas fa-home"></i> <span>Dashboard</span></a>
+        <a href="{{ url_for('main.inventory_list') }}" class="nav-item"><i class="fas fa-boxes"></i> <span>Inventory Management</span></a>
+        <a href="{{ url_for('main.notifications') }}" class="nav-item active nav-notif" id="notifNavLink"><i class="fas fa-bell"></i> <span>Notifications</span>
+        </a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-chart-pie"></i> <span>Reports</span></a>
+        <a href="{{ url_for('main.sales') }}" class="nav-item"><i class="fas fa-cash-register"></i> <span>Sales</span></a>
+        <a href="{{ url_for('main.settings') }}" class="nav-item"><i class="fas fa-cog"></i> <span>Settings</span></a>
+    </nav>
+    <a href="{{ url_for('main.logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+</div>
+
+<div class="main-content">
+    <div class="mobile-header">
+        <div class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+        <div style="font-weight:700; color:#fff;">PGPC Inventory</div>
+        <div style="width:30px;"></div>
+    </div>
+
+    <div class="page-header">
+        <h1>Notifications</h1>
+        <p>Low stock alerts and inventory warnings.</p>
+    </div>
+
+    <!-- SUMMARY BAR -->
+    {% set out_of_stock = low_stock_items | selectattr('balance', 'le', 0) | list %}
+    {% set low_only     = low_stock_items | rejectattr('balance', 'le', 0) | list %}
+    {% set expired_only   = expiration_items | selectattr('status', 'equalto', 'Expired') | list %}
+    {% set expiring_only  = expiration_items | selectattr('status', 'equalto', 'Expiring Soon') | list %}
+    <div class="summary-bar">
+        <div class="summary-card">
+            <span class="s-label">Low Stock</span>
+            <span class="s-value s-orange">{{ low_only | length }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="s-label">Out of Stock</span>
+            <span class="s-value s-red">{{ out_of_stock | length }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="s-label">Expiring Soon</span>
+            <span class="s-value s-purple">{{ expiring_only | length }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="s-label">Expired Items</span>
+            <span class="s-value s-red">{{ expired_only | length }}</span>
+        </div>
+    </div>
+
+    <!-- LOW STOCK TABLE -->
+    <div class="notif-section">
+        <div class="notif-section-title">
+            <i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i>
+            Low Stock Alerts
+        </div>
+
+        {% if low_stock_items %}
+        <table class="notif-table">
+            <thead>
+                <tr>
+                    <th>Item Description</th>
+                    <th>Balance</th>
+                    <th>Reorder Point</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in low_stock_items %}
+                {% set balance = item.quantity or 0 %}
+                <tr>
+                    <td><strong>{{ item.product_name }}</strong></td>
+                    <td>
+                        {% if balance <= 0 %}
+                            <span class="badge badge-out"><i class="fas fa-times-circle"></i> {{ balance }}</span>
+                        {% else %}
+                            <span class="badge badge-low"><i class="fas fa-exclamation-circle"></i> {{ balance }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:var(--text-muted);">{{ item.restock_threshold }}</td>
+                    <td>
+                        {% if balance <= 0 %}
+                            <span class="badge badge-out">Out of Stock</span>
+                        {% else %}
+                            <span class="badge badge-low">Low Stock</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn-view-product"
+                            data-name="{{ item.product_name }}"
+                            data-balance="{{ balance }}"
+                            data-reorder="{{ item.restock_threshold }}"
+                            data-unit="{{ item.unit or '—' }}"
+                            data-price="{{ item.selling_price or 0 }}"
+                            data-category="{{ item.undertaking_property or '—' }}"
+                            data-image="{{ item.product_image or '' }}"
+                            data-status="{{ 'out' if balance <= 0 else 'low' }}"
+                            style="background:none; border:none; cursor:pointer; color:#60a5fa; font-size:0.85rem; font-family:inherit; display:inline-flex; align-items:center; gap:5px; padding:0; transition:color 0.2s;"
+                            onmouseover="this.style.color='#93c5fd'" onmouseout="this.style.color='#60a5fa'">
+                            <i class="fas fa-arrow-right"></i> View
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            All stock levels are healthy. No alerts at this time.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- EXPIRATION ALERTS -->
+    <div class="notif-section">
+        <div class="notif-section-title">
+            <i class="fas fa-calendar-times" style="color:#c084fc;"></i>
+            Expiration Alerts
+        </div>
+
+        {% if expiration_items %}
+        <div class="exp-grid">
+            {% for entry in expiration_items %}
+            {% set is_expired = entry.status == 'Expired' %}
+            {% set days = entry.days_left %}
+            {# Bar fill: expired = 100%, expiring = scale 0–30 days to 0–100% #}
+            {% set bar_pct = 100 if is_expired else ((30 - days) / 30 * 100) | int %}
+
+            <div class="exp-card {{ 'card-expired' if is_expired else 'card-expiring' }}">
+                <!-- Header -->
+                <div class="exp-card-header">
+                    <div>
+                        <div class="exp-card-name">{{ entry.item.product_name }}</div>
+                        <div class="exp-card-prop">{{ entry.item.undertaking_property or '—' }}</div>
+                    </div>
+                    <span class="exp-status-pill {{ 'pill-expired' if is_expired else 'pill-expiring' }}">
+                        {{ 'Expired' if is_expired else 'Expiring Soon' }}
+                    </span>
+                </div>
+
+                <!-- Meta -->
+                <div class="exp-card-meta">
+                    <div class="exp-meta-row">
+                        <span class="exp-meta-label"><i class="fas fa-calendar-alt" style="margin-right:5px;"></i>Expiry Date</span>
+                        <span class="exp-meta-value">{{ entry.end_date.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div class="exp-meta-row">
+                        <span class="exp-meta-label"><i class="fas fa-cubes" style="margin-right:5px;"></i>Unit</span>
+                        <span class="exp-meta-value">{{ entry.item.unit or '—' }}</span>
+                    </div>
+                </div>
+
+                <!-- Countdown bar -->
+                <div class="exp-bar-wrap">
+                    <div class="exp-bar-track">
+                        <div class="exp-bar-fill {{ 'fill-expired' if is_expired else 'fill-expiring' }}"
+                             style="width:{{ bar_pct }}%;"></div>
+                    </div>
+                    <div class="exp-countdown {{ 'overdue' if is_expired else 'soon' }}" style="margin-top:6px;">
+                        {% if is_expired %}
+                            <i class="fas fa-times-circle"></i>
+                            <span>Overdue by {{ (days * -1) }} day{{ 's' if (days * -1) != 1 }}</span>
+                        {% else %}
+                            <i class="fas fa-hourglass-half"></i>
+                            <span>{{ days }} day{{ 's' if days != 1 }} remaining</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="exp-card-footer">
+                    <a href="{{ url_for('main.inventory_list') }}?search={{ entry.item.product_name | urlencode }}"
+                       class="exp-view-btn {{ 'btn-expired' if is_expired else 'btn-expiring' }}">
+                        <i class="fas fa-arrow-right"></i> View Item
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            No items are expired or expiring within the next 30 days.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('active');
+        document.querySelector('.sidebar-overlay').classList.toggle('active');
+    }
+    document.querySelectorAll('.nav-item').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) toggleSidebar();
+        });
+    });
+
+    // Mark notifications as seen — store current item IDs
+    var seenIds = {
+        low_stock: [{% for item in low_stock_items %}{{ item.id }}{% if not loop.last %},{% endif %}{% endfor %}],
+        expiring:  [{% for entry in expiration_items %}{{ entry.item.id }}{% if not loop.last %},{% endif %}{% endfor %}]
+    };
+    localStorage.setItem('notif_seen_ids', JSON.stringify(seenIds));
+    localStorage.setItem('notif_seen_count', '{{ notif_count }}');
+</script>
+
+<!-- ── Product Card Modal ── -->
+<div class="modal-overlay" id="productModal" onclick="closeModal(event)">
+    <div class="product-card" id="productCard">
+        <button class="product-card-close" onclick="closeProductModal()"><i class="fas fa-times"></i></button>
+
+        <div id="pcImage"></div>
+
+        <div class="product-card-name" id="pcName"></div>
+        <div class="product-card-prop" id="pcProp"></div>
+
+        <hr class="product-card-divider">
+
+        <div class="product-card-rows">
+            <div class="product-card-row">
+                <span class="pc-label"><i class="fas fa-tag"></i> Category</span>
+                <span class="pc-value" id="pcCategory"></span>
+            </div>
+            <div class="product-card-row">
+                <span class="pc-label"><i class="fas fa-ruler"></i> Unit</span>
+                <span class="pc-value" id="pcUnit"></span>
+            </div>
+            <div class="product-card-row">
+                <span class="pc-label"><i class="fas fa-peso-sign"></i> Price</span>
+                <span class="pc-value" id="pcPrice"></span>
+            </div>
+            <div class="product-card-row">
+                <span class="pc-label"><i class="fas fa-cubes"></i> Current Stock</span>
+                <span class="pc-value" id="pcBalance"></span>
+            </div>
+            <div class="product-card-row">
+                <span class="pc-label"><i class="fas fa-arrow-down"></i> Reorder Point</span>
+                <span class="pc-value" id="pcReorder"></span>
+            </div>
+        </div>
+
+        <div id="pcStatusBadge"></div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.btn-view-product').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const name     = this.dataset.name;
+            const balance  = parseInt(this.dataset.balance);
+            const reorder  = this.dataset.reorder;
+            const unit     = this.dataset.unit;
+            const price    = parseFloat(this.dataset.price).toFixed(2);
+            const category = this.dataset.category;
+            const image    = this.dataset.image;
+            const status   = this.dataset.status; // 'out' or 'low'
+
+            document.getElementById('pcName').textContent     = name;
+            document.getElementById('pcProp').textContent     = '';
+            document.getElementById('pcCategory').textContent = category;
+            document.getElementById('pcUnit').textContent     = unit;
+            document.getElementById('pcPrice').textContent    = '₱' + price;
+            document.getElementById('pcReorder').textContent  = reorder;
+
+            const balEl = document.getElementById('pcBalance');
+            balEl.textContent = balance;
+            balEl.className   = 'pc-value ' + (balance <= 0 ? 'out' : 'low');
+
+            // Image or placeholder
+            const imgWrap = document.getElementById('pcImage');
+            if (image) {
+                imgWrap.innerHTML = `<img src="/static/uploads/${image}" class="product-card-img" alt="${name}">`;
+            } else {
+                imgWrap.innerHTML = `<div class="product-card-img-placeholder"><i class="fas fa-box-open"></i></div>`;
+            }
+
+            // Status badge
+            const badgeEl = document.getElementById('pcStatusBadge');
+            if (balance <= 0) {
+                badgeEl.innerHTML = `<span class="product-card-status badge-out"><i class="fas fa-times-circle"></i> Out of Stock</span>`;
+            } else {
+                badgeEl.innerHTML = `<span class="product-card-status badge-low"><i class="fas fa-exclamation-circle"></i> Low Stock</span>`;
+            }
+
+            document.getElementById('productModal').classList.add('open');
+        });
+    });
+
+    function closeProductModal() {
+        document.getElementById('productModal').classList.remove('open');
+    }
+
+    function closeModal(e) {
+        if (e.target === document.getElementById('productModal')) closeProductModal();
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeProductModal();
+    });
+</script>
+</body>
+</html>

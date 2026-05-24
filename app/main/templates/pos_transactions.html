@@ -1,0 +1,118 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POS Transactions</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+  .page-header{margin-bottom:25px;}
+  .page-header h1{margin:0;font-size:1.8rem;font-weight:700;color:#fff;}
+  .page-header p{margin:5px 0 0;color:var(--text-muted);font-size:.9rem;}
+  .glass-section{background:rgba(30,30,45,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px 30px;box-shadow:0 4px 30px rgba(0,0,0,.1);margin-bottom:25px;}
+  .report-table{width:100%;border-collapse:separate;border-spacing:0;}
+  .report-table th,.report-table td{padding:13px 15px;text-align:left;border-bottom:1px solid rgba(255,255,255,.05);}
+  .report-table th{background:rgba(0,0,0,.3);color:#cbd5e1;font-weight:600;font-size:.82rem;text-transform:uppercase;}
+  .report-table td{color:#e2e8f0;font-size:.9rem;}
+  .report-table tr:hover td{background:rgba(255,255,255,.03);}
+  .badge-sale{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3);padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:600;}
+  .btn-view{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:#60a5fa;padding:5px 14px;border-radius:8px;font-size:.8rem;font-weight:600;text-decoration:none;transition:all .2s;}
+  .btn-view:hover{background:rgba(59,130,246,.25);}
+  .pagination{display:flex;gap:8px;justify-content:center;margin-top:20px;}
+  .page-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#94a3b8;padding:6px 14px;border-radius:8px;text-decoration:none;font-size:.85rem;transition:all .2s;}
+  .page-btn:hover,.page-btn.active{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.4);color:#60a5fa;}
+</style>
+</head>
+<body>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="sidebar">
+  <div class="logo-container">
+    <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Logo">
+    <div class="brand-name">Convenient Store</div>
+    <div class="brand-subtitle">Inventory Management System</div>
+  </div>
+  <nav class="nav-menu">
+    <a href="{{ url_for('main.dashboard') }}" class="nav-item"><i class="fas fa-home"></i> <span>Dashboard</span></a>
+    <a href="{{ url_for('main.inventory_list') }}" class="nav-item"><i class="fas fa-boxes"></i> <span>Inventory Management</span></a>
+    <a href="{{ url_for('main.notifications') }}" class="nav-item nav-notif"><i class="fas fa-bell"></i> <span>Notifications</span>{% if notif_count > 0 %}<span class="notif-badge">{{ notif_count }}</span>{% endif %}</a>
+    <a href="{{ url_for('main.reports') }}" class="nav-item"><i class="fas fa-chart-pie"></i> <span>Reports</span></a>
+    <a href="{{ url_for('main.sales') }}" class="nav-item"><i class="fas fa-cash-register"></i> <span>Sales</span></a>
+    <div class="nav-submenu">
+      <a href="{{ url_for('main.pos_terminal') }}" class="nav-sub-item"><i class="fas fa-desktop"></i><span>POS Terminal</span></a>
+      <a href="{{ url_for('main.pos_transactions') }}" class="nav-sub-item active"><i class="fas fa-receipt"></i><span>Transactions</span></a>
+    </div>
+    <a href="{{ url_for('main.settings') }}" class="nav-item"><i class="fas fa-cog"></i> <span>Settings</span></a>
+  </nav>
+  <a href="{{ url_for('main.logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+</div>
+<div class="main-content">
+  <div class="mobile-header">
+    <div class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+    <div style="font-weight:700;color:#fff;">POS Transactions</div>
+    <div style="width:30px;"></div>
+  </div>
+  <div class="page-header">
+    <h1><i class="fas fa-receipt" style="color:#10b981;margin-right:10px;"></i>Transaction History</h1>
+    <p>All completed POS sales.</p>
+  </div>
+  <div class="glass-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
+      <span style="font-size:1rem;font-weight:700;color:#fff;">All Transactions</span>
+      <a href="{{ url_for('main.pos_terminal') }}" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:9px 18px;border-radius:10px;font-size:.88rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:8px;"><i class="fas fa-cash-register"></i> Open POS</a>
+    </div>
+    {% if txns.items %}
+    <div style="overflow-x:auto;">
+    <table class="report-table">
+      <thead><tr>
+        <th>#</th><th>Receipt No.</th><th>Cashier</th><th>Items</th><th>Total</th><th>Date &amp; Time</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+      {% for txn in txns.items %}
+      <tr>
+        <td style="color:var(--text-muted);">{{ loop.index + (txns.page-1)*txns.per_page }}</td>
+        <td><span class="badge-sale">{{ txn.receipt_no }}</span></td>
+        <td>{{ txn.cashier }}</td>
+        <td>{{ txn.items|length }} item(s)</td>
+        <td style="color:#34d399;font-weight:700;">&#8369;{{ "%.2f"|format(txn.total_amount) }}</td>
+        <td style="color:var(--text-muted);">{{ txn.created_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+        <td><a href="{{ url_for('main.pos_receipt', txn_id=txn.id) }}" class="btn-view"><i class="fas fa-eye"></i> View</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="pagination">
+      {% if txns.has_prev %}<a href="?page={{ txns.prev_num }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>{% endif %}
+      {% for p in txns.iter_pages(left_edge=1,right_edge=1,left_current=2,right_current=2) %}
+        {% if p %}<a href="?page={{ p }}" class="page-btn {% if p==txns.page %}active{% endif %}">{{ p }}</a>
+        {% else %}<span class="page-btn">…</span>{% endif %}
+      {% endfor %}
+      {% if txns.has_next %}<a href="?page={{ txns.next_num }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:50px;color:var(--text-muted);">
+      <i class="fas fa-receipt" style="font-size:2.5rem;margin-bottom:12px;display:block;color:#334155;"></i>
+      No transactions yet. <a href="{{ url_for('main.pos_terminal') }}" style="color:#3b82f6;">Open POS Terminal</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<script>
+function toggleSidebar(){document.querySelector('.sidebar').classList.toggle('active');document.querySelector('.sidebar-overlay').classList.toggle('active');}
+
+// Hide notif badge if already seen
+(function() {
+    var badge = document.querySelector('.notif-badge');
+    if (!badge) return;
+    var currentIds = {{ notif_ids }};
+    var seenData = JSON.parse(localStorage.getItem('notif_seen_ids') || '{"low_stock":[],"expiring":[]}');
+    var seenIds = new Set([...(seenData.low_stock||[]),...(seenData.expiring||[])]);
+    var newCount = currentIds.filter(function(id){return !seenIds.has(id);}).length;
+    if (newCount <= 0) badge.style.display = 'none';
+    else badge.textContent = newCount;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - PGPC Inventory</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Shared Main CSS (Dark Glass Theme) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
+    <style>
+        /* --- SETTINGS SPECIFIC STYLES (Dark Theme Adapted) --- */
+
+        /* Page Header */
+        .page-header { margin-bottom: 25px; }
+        .page-header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .page-header p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+        /* Settings Wrapper (Glass Container) */
+        .settings-wrapper {
+            display: flex;
+            background: rgba(30, 30, 45, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            height: calc(100vh - 140px);
+            overflow: hidden;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Left Navigation */
+        .settings-nav {
+            width: 220px;
+            min-width: 220px;
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 20px 15px;
+            display: flex; flex-direction: column; gap: 8px;
+            overflow: hidden;
+        }
+
+        .nav-btn {
+            display: flex; align-items: center; gap: 15px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 500;
+            cursor: pointer; text-align: left;
+            transition: all 0.2s ease;
+        }
+        .nav-btn i { width: 20px; text-align: center; font-size: 1.1rem; }
+        
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        
+        .nav-btn.active { 
+            background: rgba(37, 99, 235, 0.15); 
+            color: #60a5fa; /* Light Blue */
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            font-weight: 600;
+        }
+        
+        /* Right Content Area */
+        .settings-content {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Tabs Animation */
+        .tab-pane { display: none; animation: fadeIn 0.3s ease-out; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Form Styling */
+        .section-title { 
+            font-size: 1.2rem; font-weight: 700; color: #fff; 
+            margin-bottom: 25px; padding-bottom: 10px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+
+        .form-group { margin-bottom: 25px; }
+        .form-group label { 
+            display: block; margin-bottom: 8px; 
+            font-size: 0.85rem; font-weight: 600; color: #cbd5e1; 
+        }
+        
+        .form-input {
+            width: 100%; padding: 12px 15px; border-radius: 10px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2); 
+            font-family: inherit; font-size: 0.9rem; color: #fff;
+            outline: none; transition: 0.2s;
+        }
+        .form-input:focus { 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); 
+        }
+        .form-input:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            color: #64748b;
+            border-color: transparent;
+        }
+
+        /* Profile Icon */
+        .profile-area { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; }
+        
+        /* Buttons */
+        .action-bar { margin-top: 30px; display: flex; justify-content: flex-end; }
+        
+        .btn-save { 
+            background: #2563eb; color: white; border: none; 
+            padding: 12px 30px; border-radius: 10px; 
+            font-weight: 600; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); 
+            transition: 0.2s; text-decoration: none;
+        }
+        .btn-save:hover { background: #1d4ed8; transform: translateY(-2px); }
+
+        /* Flash Messages */
+        .flashes { list-style: none; padding: 0; margin-bottom: 20px; }
+        .flashes li { padding: 12px 20px; border-radius: 10px; margin-bottom: 10px; font-size: 0.9rem; }
+        .success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+        /* TRASH TABLE STYLES */
+        .trash-container {
+            margin-top: 16px;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .trash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .trash-header h4 { margin:0; color:#f87171; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:7px; }
+        .trash-info { font-size:0.78rem; color:var(--text-muted); margin-top:3px; }
+        .trash-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+        }
+        .trash-table thead tr { background: rgba(0,0,0,0.2); }
+        .trash-table th {
+            padding: 9px 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            white-space: nowrap;
+            text-align: left;
+        }
+        .trash-table td {
+            padding: 11px 12px;
+            font-size: 0.84rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: middle;
+        }
+        .trash-table tbody tr:last-child td { border-bottom: none; }
+        .trash-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+        .badge-days {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: rgba(239,68,68,0.15);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,0.25);
+            white-space: nowrap;
+        }
+        .badge-days.safe {
+            background: rgba(16,185,129,0.12);
+            color: #34d399;
+            border-color: rgba(16,185,129,0.25);
+        }
+        .trash-action-group {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 5px;
+            flex-wrap: nowrap;
+            margin-left: auto;
+        }
+        .btn-restore {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+            background: rgba(16,185,129,0.12); color: #34d399;
+            border: 1px solid rgba(16,185,129,0.25); font-size: 0.75rem;
+            transition: background 0.2s; flex-shrink: 0;
+        }
+        .btn-restore:hover { background: rgba(16,185,129,0.28); }
+        .btn-force-del {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+            background: rgba(239,68,68,0.12); color: #f87171;
+            border: 1px solid rgba(239,68,68,0.25); font-size: 0.75rem;
+            transition: background 0.2s; flex-shrink: 0;
+        }
+        .btn-force-del:hover { background: rgba(239,68,68,0.28); }
+
+        /* Export Card */
+        .export-card {
+            background: rgba(16, 185, 129, 0.1); 
+            border: 1px solid rgba(16, 185, 129, 0.2); 
+            padding: 20px; border-radius: 15px; margin-bottom: 30px;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 900px) {
+            .settings-wrapper { flex-direction: column; height: auto; overflow: visible; }
+            .settings-nav { width: 100%; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 20px; }
+            .settings-content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/convenience_logo.png') }}" alt="Convenience Store Logo">
+        <div class="brand-name">Convenient Store</div>
+        <div class="brand-subtitle">Inventory Management System</div>
+    </div>
+
+    <nav class="nav-menu">
+        <a href="{{ url_for('main.dashboard') }}" class="nav-item">
+            <i class="fas fa-home"></i> <span>Dashboard</span>
+        </a>
+        <a href="{{ url_for('main.inventory_list') }}" class="nav-item">
+            <i class="fas fa-boxes"></i> <span>Inventory Management</span>
+        </a>
+        <a href="{{ url_for('main.notifications') }}" class="nav-item nav-notif"><i class="fas fa-bell"></i> <span>Notifications</span>
+            {% if notif_count > 0 %}<span class="notif-badge">{{ notif_count }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('main.reports') }}" class="nav-item">
+            <i class="fas fa-chart-pie"></i> <span>Reports</span>
+        </a>
+        <a href="{{ url_for('main.sales') }}" class="nav-item">
+            <i class="fas fa-cash-register"></i> <span>Sales</span>
+        </a>
+        <a href="{{ url_for('main.settings') }}" class="nav-item active">
+            <i class="fas fa-cog"></i> <span>Settings</span>
+        </a>
+    </nav>
+
+    <a href="{{ url_for('main.logout') }}" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+    </a>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+    
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="menu-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </div>
+        <div style="font-weight:700; color: #fff;">PGPC Inventory</div>
+        <div style="width:30px;"></div> 
+    </div>
+
+    <!-- Header -->
+    <div class="page-header">
+        <h1>Settings & Preferences</h1>
+        <p>Manage your profile, system rules, and security.</p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <ul class="flashes">
+            {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
+    <div class="settings-wrapper">
+        
+        <!-- LEFT NAVIGATION -->
+        <div class="settings-nav">
+            <button class="nav-btn active" onclick="showTab('profile', this)">
+                <i class="fas fa-user-circle"></i> Profile
+            </button>
+            <button class="nav-btn" onclick="showTab('security', this)">
+                <i class="fas fa-shield-alt"></i> Security
+            </button>
+            <button class="nav-btn" onclick="showTab('data', this)">
+                <i class="fas fa-database"></i> Data Management
+            </button>
+            <button class="nav-btn" onclick="showTab('backup', this)">
+                <i class="fas fa-shield-alt"></i> Backup & Recovery
+            </button>
+        </div>
+
+        <!-- RIGHT CONTENT -->
+        <div class="settings-content">
+            
+            <!-- 1. PROFILE TAB -->
+            <div id="profile" class="tab-pane active">
+                <div class="section-title">My Profile</div>
+                
+                <form action="{{ url_for('main.update_profile') }}" method="POST">
+                    
+                    <!-- PROFILE ICON AREA -->
+                    <div class="profile-area" style="flex-direction: column; justify-content: center;">
+                        <!-- Updated styling for dark theme -->
+                        <i class="fas fa-user-circle" style="font-size: 100px; color: #e2e8f0; background: rgba(255,255,255,0.1); border-radius: 50%; padding: 2px;"></i>
+                        
+                        <div style="text-align: center; margin-top: 15px;">
+                            <h5 style="margin:0 0 5px 0; font-size: 1.2rem; color: #fff;">{{ current_user.username }}</h5>
+                            <span style="background: rgba(37, 99, 235, 0.15); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+                                Administrator
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="row" style="display: flex; gap: 20px; margin-top: 20px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Username</label>
+                            <input type="text" class="form-input" name="username" value="{{ current_user.username }}" required>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Recovery Email (Gmail)</label>
+                            <!-- Ensure name="email" and value is current_user.email -->
+                            <input type="email" class="form-input" name="email" value="{{ current_user.email or '' }}" placeholder="your.name@gmail.com" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Role / Position</label>
+                        <input type="text" class="form-input" value="System Administrator" disabled>
+                    </div>
+
+                    <div class="action-bar">
+                        <button type="submit" class="btn-save">Save Profile Details</button>
+                    </div>
+                </form>
+            </div>
+
+
+            <!-- 3. SECURITY TAB -->
+            <div id="security" class="tab-pane">
+                <div class="section-title">Security Settings</div>
+                
+                <form action="{{ url_for('main.change_password') }}" method="POST">
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" class="form-input" name="current_password" required>
+                    </div>
+                    <div class="row" style="display: flex; gap: 20px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>New Password</label>
+                            <input type="password" class="form-input" name="new_password" required>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Confirm New Password</label>
+                            <input type="password" class="form-input" name="confirm_password" required>
+                        </div>
+                    </div>
+
+                    <div class="action-bar">
+                        <button type="submit" class="btn-save" style="background: #dc2626; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);">
+                            Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 4. DATA TAB -->
+            <div id="data" class="tab-pane">
+                <div class="section-title">Data Management</div>
+                
+                <!-- Export Section -->
+                <div class="export-card">
+                    <h5 style="margin: 0 0 10px 0; color: #34d399; font-size: 1rem;"><i class="fas fa-file-excel"></i> Export Database</h5>
+                    <p style="margin: 0 0 15px 0; font-size: 0.9rem; color: #d1fae5;">Download a complete record of all active inventory items.</p>
+                    <a href="{{ url_for('main.export_excel') }}" class="btn-save" style="background: #10b981; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); display: inline-block;">
+                        Download Excel
+                    </a>
+                </div>
+
+                <!-- TRASH / RECYCLE BIN SECTION -->
+                <div class="trash-container">
+                    <form action="{{ url_for('main.handle_bulk_trash') }}" method="POST" id="trashForm">
+                        <div class="trash-header">
+                            <div>
+                                <h4><i class="fas fa-trash-alt"></i> Recycle Bin</h4>
+                                <p class="trash-info">Items are automatically permanently deleted after 30 days.</p>
+                            </div>
+                            <div id="bulkTrashActions" style="display:none; gap:6px; align-items:center; flex-wrap:wrap;">
+                                <button type="submit" name="action" value="restore" class="btn-restore"
+                                    style="width:auto; padding:0 12px; height:28px; gap:5px; font-size:0.75rem; font-weight:600; white-space:nowrap;">
+                                    <i class="fas fa-undo"></i> Restore
+                                </button>
+                                <button type="submit" name="action" value="delete" class="btn-force-del"
+                                    style="width:auto; padding:0 12px; height:28px; gap:5px; font-size:0.75rem; font-weight:600; white-space:nowrap;"
+                                    onclick="return confirm('Permanently delete selected items?');">
+                                    <i class="fas fa-times"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+
+                        <table class="trash-table">
+                            <colgroup>
+                                <col style="width:5%">
+                                <col style="width:42%">
+                                <col style="width:23%">
+                                <col style="width:14%">
+                                <col style="width:16%">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th style="text-align:center; padding:8px 6px;">
+                                        <input type="checkbox" id="selectAllTrash" onclick="toggleAllTrash(this)">
+                                    </th>
+                                    <th style="padding:8px 6px;">Item Description</th>
+                                    <th style="padding:8px 6px;">Date Deleted</th>
+                                    <th style="padding:8px 6px;">Expires</th>
+                                    <th style="padding:8px 6px; text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if deleted_items %}
+                                    {% for item in deleted_items %}
+                                    {% set days_elapsed = (item.deleted_at.now() - item.deleted_at).days %}
+                                    {% set days_left = 30 - days_elapsed %}
+                                    <tr>
+                                        <td style="text-align:center; padding:9px 6px;">
+                                            <input type="checkbox" name="trash_ids" value="{{ item.id }}" class="trash-check" onclick="checkBulkTrashStatus()">
+                                        </td>
+                                        <td style="font-weight:600; color:#f1f5f9; padding:9px 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ item.product_name }}</td>
+                                        <td style="color:#94a3b8; padding:9px 6px; white-space:nowrap;">{{ item.deleted_at.strftime('%b %d, %Y') }}</td>
+                                        <td style="padding:9px 6px;">
+                                            <span class="badge-days {% if days_left > 10 %}safe{% endif %}">{{ days_left }}d</span>
+                                        </td>
+                                        <td style="padding:9px 6px; text-align:right;">
+                                            <div class="trash-action-group">
+                                                <button type="submit" formaction="{{ url_for('main.restore_item', item_id=item.id) }}"
+                                                    class="btn-restore" title="Restore">
+                                                    <i class="fas fa-undo"></i>
+                                                </button>
+                                                <button type="submit" formaction="{{ url_for('main.force_delete_item', item_id=item.id) }}"
+                                                    class="btn-force-del" title="Delete permanently"
+                                                    onclick="return confirm('Permanently delete this item?');">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; padding:36px 14px; color:#475569;">
+                                            <i class="fas fa-trash" style="font-size:1.5rem; display:block; margin-bottom:8px; opacity:0.2;"></i>
+                                            Recycle bin is empty.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 5. BACKUP & RECOVERY TAB -->
+            <div id="backup" class="tab-pane">
+                <div class="section-title">Backup & Recovery</div>
+
+                <!-- BACKUP SECTION -->
+                <div style="background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.2); border-radius:15px; padding:25px; margin-bottom:25px;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                        <i class="fas fa-download" style="color:#60a5fa; font-size:1.4rem;"></i>
+                        <div>
+                            <div style="font-weight:700; color:#fff; font-size:1rem;">Create Backup</div>
+                            <div style="color:var(--text-muted); font-size:0.85rem;">Downloads a full JSON backup of all inventory, history, and borrowing records.</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:12px 15px; margin:15px 0; font-size:0.82rem; color:#94a3b8; line-height:1.7;">
+                        <i class="fas fa-info-circle" style="color:#60a5fa; margin-right:6px;"></i>
+                        <strong style="color:#cbd5e1;">What's included:</strong> All inventory items (active &amp; deleted), transaction history logs, and borrowing records. Store this file in a safe location.
+                    </div>
+                    <a href="{{ url_for('main.backup_data') }}" class="btn-save" style="display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-download"></i> Download Backup (.json)
+                    </a>
+                </div>
+
+                <!-- RESTORE SECTION -->
+                <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:15px; padding:25px;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                        <i class="fas fa-upload" style="color:#fbbf24; font-size:1.4rem;"></i>
+                        <div>
+                            <div style="font-weight:700; color:#fff; font-size:1rem;">Restore from Backup</div>
+                            <div style="color:var(--text-muted); font-size:0.85rem;">Upload a previously downloaded backup file to recover all data.</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:12px 15px; margin:15px 0; font-size:0.82rem; color:#fca5a5; line-height:1.7;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+                        <strong>Warning:</strong> Restoring will <strong>merge</strong> backup data into the current database. Existing records with the same ID will be skipped. This cannot be undone.
+                    </div>
+                    <form action="{{ url_for('main.restore_data') }}" method="POST" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to restore from this backup? This will merge data into your current database.');">
+                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <label style="display:inline-flex; align-items:center; gap:8px; background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); padding:10px 18px; border-radius:10px; cursor:pointer; font-weight:600; font-size:0.9rem;" onmouseover="this.style.background='rgba(245,158,11,0.22)'" onmouseout="this.style.background='rgba(245,158,11,0.12)'">
+                                <i class="fas fa-folder-open"></i> Choose Backup File
+                                <input type="file" name="backup_file" accept=".json" required style="display:none;" onchange="document.getElementById('restoreFileName').innerText = this.files[0] ? this.files[0].name : ''">
+                            </label>
+                            <span id="restoreFileName" style="color:#94a3b8; font-size:0.85rem;"></span>
+                            <button type="submit" class="btn-save" style="background:#d97706; box-shadow:0 4px 15px rgba(217,119,6,0.3); display:inline-flex; align-items:center; gap:8px;">
+                                <i class="fas fa-undo"></i> Restore Now
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT FOR TABS -->
+<script>
+    // Tab Switching Logic
+    function showTab(tabId, btnElement) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-pane').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        // Show selected tab
+        document.getElementById(tabId).classList.add('active');
+
+        // Update button styles
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        btnElement.classList.add('active');
+    }
+
+    // Sidebar Logic
+    function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
+
+    // Auto-close sidebar on mobile
+    const navLinks = document.querySelectorAll('.nav-item');
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) {
+                toggleSidebar();
+            }
+        });
+    });
+
+    // Hide notif badge if already seen
+    (function() {
+        var badge = document.querySelector('.notif-badge');
+        if (!badge) return;
+        var currentIds = {{ notif_ids }};
+        var seenData = JSON.parse(localStorage.getItem('notif_seen_ids') || '{"low_stock":[],"expiring":[]}');
+        var seenIds = new Set([...(seenData.low_stock||[]),...(seenData.expiring||[])]);
+        var newCount = currentIds.filter(function(id){return !seenIds.has(id);}).length;
+        if (newCount <= 0) badge.style.display = 'none';
+        else badge.textContent = newCount;
+    })();
+
+
+    // --- BULK TRASH LOGIC ---
+
+// 1. Toggle All Checkboxes
+function toggleAllTrash(source) {
+    const checkboxes = document.querySelectorAll('.trash-check');
+    checkboxes.forEach(cb => {
+        cb.checked = source.checked;
+    });
+    checkBulkTrashStatus();
+}
+
+// 2. Show/Hide Bulk Buttons based on selection
+function checkBulkTrashStatus() {
+    const checkedBoxes = document.querySelectorAll('.trash-check:checked');
+    const bulkDiv = document.getElementById('bulkTrashActions');
+    
+    if (checkedBoxes.length > 0) {
+        bulkDiv.style.display = 'flex';
+    } else {
+        bulkDiv.style.display = 'none';
+        // Uncheck master box if no children are checked
+        document.getElementById('selectAllTrash').checked = false;
+    }
+}
+</script>
+</body>
+</html>
