@@ -196,9 +196,7 @@ def dashboard():
 # ---------------- ROOT ROUTE ----------------
 @main.route('/')
 def home():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
-    return redirect(url_for('main.login'))
+    return redirect(url_for('main.dashboard'))
 
 # ---------------- INVENTORY LIST ----------------
 @main.route('/inventory_list', methods=['GET'])
