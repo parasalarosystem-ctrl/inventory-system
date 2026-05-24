@@ -196,7 +196,9 @@ def dashboard():
 # ---------------- ROOT ROUTE ----------------
 @main.route('/')
 def home():
-    return redirect(url_for('main.dashboard'))
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.login'))
 
 # ---------------- INVENTORY LIST ----------------
 @main.route('/inventory_list', methods=['GET'])
@@ -297,36 +299,11 @@ def login():
             (User.username == identifier) | (User.email == identifier)
         ).first()
 
-        # Check if this is step 1 (credential validation only)
-        login_step = request.form.get('loginStep', '2')
-        
-        if login_step == '1':
-            # Step 1: Only validate credentials, return JSON response
-            if user and user.check_password(password):
-                return jsonify({'success': True, 'message': 'Credentials verified'})
-            else:
-                return jsonify({'success': False, 'message': 'Invalid email or password'})
-        
-        # Step 2: Full login with CAPTCHA and 2FA
         if user and user.check_password(password):
-            # Get CAPTCHA and auth code from form
-            captcha = request.form.get('captcha', '').strip()
-            auth_code = request.form.get('auth_code', '').strip()
-            
-            # Validate authentication code (2FA)
-            if not auth_code or len(auth_code) != 6 or not auth_code.isdigit():
-                flash('Invalid authentication code. Please enter a valid 6-digit code.', 'error')
-                return render_template('login.html')
-            
             # Note: CAPTCHA is validated on client-side
-            # In production, you should also validate it server-side
-            
-            # TODO: Implement actual 2FA verification here
-            # For now, we'll accept any 6-digit code
-            # In production, verify against stored 2FA secret
-            
+            # The client-side JavaScript validates the CAPTCHA before form submission
             login_user(user)
-            log_audit('Login', target=user.username or user.email, details='User logged in with 2FA')
+            log_audit('Login', target=user.username or user.email, details='User logged in')
             flash(f'Welcome, {user.username or user.email}!', 'success')
             return redirect(url_for('main.dashboard'))
         else:

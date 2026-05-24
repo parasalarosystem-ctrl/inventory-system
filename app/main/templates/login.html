@@ -154,6 +154,7 @@
         }
         .custom-input-group input::placeholder { color: rgba(255, 255, 255, 0.5); }
         .input-icon { color: var(--text-muted); font-size: 1.2rem; margin-left: 10px; }
+        .input-icon:hover { color: var(--accent-blue); }
 
         /* --- ALERTS --- */
         .custom-alert {
@@ -247,81 +248,45 @@
 
             <form method="POST" action="{{ url_for('main.login') }}" id="loginForm">
                 
-                <!-- Step 1: Email and Password (Always visible) -->
-                <div id="step1Fields">
-                    <!-- Gmail/Email -->
-                    <div class="custom-input-group">
-                        <input type="text" id="username" name="username" placeholder="Enter Gmail/Email" required>
-                        <i class="bi bi-envelope input-icon"></i>
-                    </div>
-
-                    <!-- Password -->
-                    <div class="custom-input-group">
-                        <input type="password" id="password" name="password" placeholder="Enter Password" required>
-                        <i class="bi bi-shield-lock input-icon"></i>
-                    </div>
-
-                    <a href="{{ url_for('main.forgot_password') }}" class="forgot-link">Forgot Password?</a>
-                    <div style="clear:both;"></div>
-
-                    <button type="button" class="btn-login" onclick="validateCredentials()">
-                        Continue
-                    </button>
+                <!-- Gmail/Email -->
+                <div class="custom-input-group">
+                    <input type="text" id="username" name="username" placeholder="Enter Gmail/Email" required>
+                    <i class="bi bi-envelope input-icon"></i>
                 </div>
 
-                <!-- Step 2: CAPTCHA and 2FA (Hidden initially) -->
-                <div id="step2Fields" style="display: none;">
-                    
-                    <!-- Success message -->
-                    <div style="background: rgba(25, 135, 84, 0.25); border: 1px solid rgba(25, 135, 84, 0.5); color: #d1e7dd; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                        <i class="bi bi-check-circle-fill" style="font-size: 1.2rem;"></i>
-                        <span>Credentials verified! Complete security verification.</span>
-                    </div>
+                <!-- Password with View Toggle -->
+                <div class="custom-input-group">
+                    <input type="password" id="password" name="password" placeholder="Enter Password" required>
+                    <i class="bi bi-eye-slash input-icon" id="togglePassword" style="cursor: pointer;" title="Show/Hide Password"></i>
+                </div>
 
-                    <!-- CAPTCHA Input -->
-                    <div class="custom-input-group">
-                        <input type="text" id="captcha" name="captcha" placeholder="Enter CAPTCHA" required disabled>
-                        <i class="bi bi-shield-check input-icon"></i>
-                    </div>
-                    
-                    <!-- CAPTCHA Display -->
-                    <div style="background: rgba(255,255,255,0.95); border-radius: 8px; padding: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <span id="captchaText" style="font-size: 1.8rem; font-weight: 700; letter-spacing: 8px; color: #1e1e2d; font-family: 'Courier New', monospace; text-decoration: line-through; text-decoration-color: rgba(0,0,0,0.3);">LOADING</span>
-                            <button type="button" onclick="generateCaptcha()" style="background: none; border: none; cursor: pointer; color: #0d6efd; font-size: 1.2rem;" title="Refresh CAPTCHA">
-                                <i class="bi bi-arrow-clockwise"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Authentication Code (2FA) - REQUIRED -->
-                    <div class="custom-input-group">
-                        <input type="text" id="auth_code" name="auth_code" placeholder="Enter Authentication Code" maxlength="6" pattern="[0-9]{6}" required disabled>
-                        <i class="bi bi-key input-icon"></i>
-                    </div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -15px; margin-bottom: 20px; text-align: center;">
-                        <i class="bi bi-info-circle"></i> Enter 6-digit code from your authenticator app
-                    </div>
-
-                    <div style="display: flex; gap: 10px;">
-                        <button type="button" class="btn-login" onclick="goBackToStep1()" style="background: rgba(108, 117, 125, 0.8); flex: 0 0 auto; width: auto; padding: 12px 20px;">
-                            <i class="bi bi-arrow-left"></i> Back
-                        </button>
-                        <button type="submit" class="btn-login" style="flex: 1;">
-                            Sign In
+                <!-- CAPTCHA Input -->
+                <div class="custom-input-group">
+                    <input type="text" id="captcha" name="captcha" placeholder="Enter CAPTCHA" required>
+                    <i class="bi bi-shield-check input-icon"></i>
+                </div>
+                
+                <!-- CAPTCHA Display -->
+                <div style="background: rgba(255,255,255,0.95); border-radius: 8px; padding: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span id="captchaText" style="font-size: 1.8rem; font-weight: 700; letter-spacing: 8px; color: #1e1e2d; font-family: 'Courier New', monospace; text-decoration: line-through; text-decoration-color: rgba(0,0,0,0.3);">LOADING</span>
+                        <button type="button" onclick="generateCaptcha()" style="background: none; border: none; cursor: pointer; color: #0d6efd; font-size: 1.2rem;" title="Refresh CAPTCHA">
+                            <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Hidden field to track step -->
-                <input type="hidden" id="loginStep" name="loginStep" value="1">
+                <a href="{{ url_for('main.forgot_password') }}" class="forgot-link">Forgot Password?</a>
+                <div style="clear:both;"></div>
+
+                <button type="submit" class="btn-login">
+                    Sign In
+                </button>
 
             </form>
 
             <script>
-                let credentialsVerified = false;
-
-                // Generate random CAPTCHA
+                // Generate random CAPTCHA on page load
                 function generateCaptcha() {
                     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
                     let captcha = '';
@@ -332,86 +297,29 @@
                     document.getElementById('captchaText').dataset.value = captcha;
                 }
 
-                // Step 1: Validate credentials via AJAX
-                async function validateCredentials() {
-                    const username = document.getElementById('username').value;
-                    const password = document.getElementById('password').value;
+                // Generate CAPTCHA when page loads
+                window.addEventListener('DOMContentLoaded', function() {
+                    generateCaptcha();
+                });
 
-                    if (!username || !password) {
-                        alert('❌ Please enter both email and password.');
-                        return;
-                    }
+                // Toggle password visibility
+                const togglePassword = document.getElementById('togglePassword');
+                const passwordInput = document.getElementById('password');
 
-                    // Show loading state
-                    const continueBtn = event.target;
-                    const originalText = continueBtn.innerHTML;
-                    continueBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Verifying...';
-                    continueBtn.disabled = true;
+                togglePassword.addEventListener('click', function() {
+                    // Toggle the type attribute
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    // Toggle the icon
+                    this.classList.toggle('bi-eye');
+                    this.classList.toggle('bi-eye-slash');
+                });
 
-                    try {
-                        // Send credentials to server for validation
-                        const response = await fetch('{{ url_for("main.login") }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                            body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&loginStep=1`
-                        });
-
-                        const result = await response.json();
-
-                        if (result.success) {
-                            // Credentials are correct, show step 2
-                            credentialsVerified = true;
-                            document.getElementById('step1Fields').style.display = 'none';
-                            document.getElementById('step2Fields').style.display = 'block';
-                            
-                            // Enable step 2 fields
-                            document.getElementById('captcha').disabled = false;
-                            document.getElementById('auth_code').disabled = false;
-                            
-                            // Generate CAPTCHA
-                            generateCaptcha();
-                            
-                            // Focus on CAPTCHA field
-                            document.getElementById('captcha').focus();
-                            
-                            // Update hidden step field
-                            document.getElementById('loginStep').value = '2';
-                        } else {
-                            // Credentials are incorrect
-                            alert('❌ ' + (result.message || 'Invalid email or password. Please try again.'));
-                            continueBtn.innerHTML = originalText;
-                            continueBtn.disabled = false;
-                        }
-                    } catch (error) {
-                        alert('❌ An error occurred. Please try again.');
-                        continueBtn.innerHTML = originalText;
-                        continueBtn.disabled = false;
-                    }
-                }
-
-                // Go back to step 1
-                function goBackToStep1() {
-                    document.getElementById('step2Fields').style.display = 'none';
-                    document.getElementById('step1Fields').style.display = 'block';
-                    document.getElementById('loginStep').value = '1';
-                    document.getElementById('captcha').value = '';
-                    document.getElementById('auth_code').value = '';
-                    credentialsVerified = false;
-                }
-
-                // Validate CAPTCHA and 2FA on final form submit
+                // Validate CAPTCHA on form submit
                 document.getElementById('loginForm').addEventListener('submit', function(e) {
-                    if (!credentialsVerified) {
-                        e.preventDefault();
-                        alert('❌ Please verify your credentials first.');
-                        return false;
-                    }
-
                     const userCaptcha = document.getElementById('captcha').value;
                     const actualCaptcha = document.getElementById('captchaText').dataset.value;
-                    const authCode = document.getElementById('auth_code').value;
                     
                     if (userCaptcha !== actualCaptcha) {
                         e.preventDefault();
@@ -419,13 +327,6 @@
                         generateCaptcha();
                         document.getElementById('captcha').value = '';
                         document.getElementById('captcha').focus();
-                        return false;
-                    }
-
-                    if (!authCode || authCode.length !== 6) {
-                        e.preventDefault();
-                        alert('❌ Please enter a valid 6-digit authentication code.');
-                        document.getElementById('auth_code').focus();
                         return false;
                     }
                 });
