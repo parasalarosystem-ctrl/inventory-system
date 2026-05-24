@@ -43,7 +43,6 @@ def inject_notif_count():
 
 # ---------------- NOTIFICATIONS ----------------
 @main.route('/notifications')
-@login_required
 def notifications():
     now = date.today()
 
@@ -77,7 +76,6 @@ def notifications():
 
 # ---------------- DASHBOARD ----------------
 @main.route('/dashboard')
-@login_required
 def dashboard():
     now = date.today()
 
@@ -204,7 +202,6 @@ def home():
 
 # ---------------- INVENTORY LIST ----------------
 @main.route('/inventory_list', methods=['GET'])
-@login_required
 def inventory_list():
 
     query = Inventory.query.filter(
@@ -341,7 +338,6 @@ def login():
 
 # ---------------- LOGOUT ----------------
 @main.route('/logout')
-@login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
@@ -350,7 +346,6 @@ def logout():
 
 # ---------------- ADD PRODUCT ----------------
 @main.route('/add_item', methods=['GET', 'POST'])
-@login_required
 def add_item():
     if request.method == 'POST':
         product_name = request.form.get('product_name', '').strip()
@@ -423,7 +418,6 @@ def add_item():
 # ---------------- EDIT ITEM (MERGED & SECURED) ----------------
 
 @main.route('/edit_item/<int:item_id>', methods=['POST'])
-@login_required
 def edit_item(item_id):
     item = Inventory.query.get_or_404(item_id)
 
@@ -474,7 +468,6 @@ def edit_item(item_id):
 
 # ---------------- DELETE PRODUCT ----------------
 @main.route('/delete_item/<int:item_id>', methods=['POST'])
-@login_required
 def delete_item(item_id):
     item = Inventory.query.get_or_404(item_id)
     item_name = item.product_name
@@ -509,7 +502,6 @@ def delete_item(item_id):
 # --- 3. NEW RESTORE FUNCTION ---
 # --- UPDATED RESTORE FUNCTION (SMART MERGE) ---
 @main.route('/restore_item/<int:item_id>', methods=['POST'])
-@login_required
 def restore_item(item_id):
     # This is the item currently in the trash
     trash_item = Inventory.query.get_or_404(item_id)
@@ -543,7 +535,6 @@ def restore_item(item_id):
 
 # --- 4. NEW PERMANENT DELETE FUNCTION ---
 @main.route('/force_delete_item/<int:item_id>', methods=['POST'])
-@login_required
 def force_delete_item(item_id):
     item = Inventory.query.get_or_404(item_id)
     item_name = item.product_name
@@ -559,7 +550,6 @@ def force_delete_item(item_id):
 
 # ---------------- GET ITEM DATA FOR PRINT ----------------
 @main.route('/get_item_data_for_print/<int:item_id>', methods=['GET'])
-@login_required
 def get_item_data_for_print(item_id):
     item = Inventory.query.get(item_id)
     if item:
@@ -617,7 +607,6 @@ def log_audit(action, target=None, details=None):
 
 # ---------------- SALES CHART API (shared by Dashboard + Sales) ----------------
 @main.route('/api/sales_chart')
-@login_required
 def api_sales_chart():
     from calendar import month_abbr
 
@@ -711,7 +700,6 @@ def api_sales_chart():
         'products':       products,
     })
 @main.route('/api/audit_logs')
-@login_required
 def api_audit_logs():
     """Returns the latest audit log entries as JSON for real-time polling."""
     since_id = request.args.get('since_id', 0, type=int)
@@ -736,7 +724,6 @@ def api_audit_logs():
 
 # ---------------- EXCEL EXPORT (Server Side) ----------------
 @main.route('/export_excel')
-@login_required
 def export_excel():
     items = Inventory.query.filter(Inventory.is_deleted == False).all()
     if not items:
@@ -815,7 +802,6 @@ def export_excel():
 
 
 @main.route('/import_excel_data', methods=['POST'])
-@login_required
 def import_excel_data():
     try:
         data = request.get_json()
@@ -919,7 +905,6 @@ def import_excel_data():
 
 
 @main.route('/reports')
-@login_required
 def reports():
     now = datetime.now().date()
 
@@ -1065,7 +1050,6 @@ def reports():
 # API: SALES PERFORMANCE DATA
 # ============================================================
 @main.route('/api/sales_performance')
-@login_required
 def api_sales_performance():
     period = request.args.get('period', 'daily')
     start_date_str = request.args.get('start')
@@ -1123,7 +1107,6 @@ def api_sales_performance():
 
 # ---------------- SALES ROUTE ----------------
 @main.route('/sales')
-@login_required
 def sales():
     sales_items = Inventory.query.filter(
         Inventory.status == 'Active',
@@ -1396,7 +1379,6 @@ def sales():
 
 
 @main.route('/resolve_disposal', methods=['POST'])
-@login_required
 def resolve_disposal():
     history_id = request.form.get('history_id')
     resolution_type = request.form.get('resolution_type')
@@ -1444,7 +1426,6 @@ def resolve_disposal():
 
 
 @main.route('/dispose_item', methods=['POST'])
-@login_required
 def dispose_item():
     item_id = request.form.get('item_id')
     source = request.form.get('disposal_source') # 'balance' or 'issued'
@@ -1486,7 +1467,6 @@ def dispose_item():
 
 
 @main.route('/fix_missing_history')
-@login_required
 def fix_missing_history():
     # Find items that are NOT Active but have NO history
     items = Inventory.query.filter(Inventory.status != 'Active').all()
@@ -1512,7 +1492,6 @@ def fix_missing_history():
 
 
 @main.route('/delete_multiple_items', methods=['POST'])
-@login_required
 def delete_multiple_items():
     # Get the list of IDs from the form
     item_ids = request.form.getlist('item_ids')
@@ -1558,7 +1537,6 @@ def delete_multiple_items():
 
 # ---------------- BACKUP & RECOVERY ----------------
 @main.route('/backup_data')
-@login_required
 def backup_data():
     inventory_items = Inventory.query.all()
     history_logs = DisposalHistory.query.all()
@@ -1603,7 +1581,6 @@ def backup_data():
 
 
 @main.route('/restore_data', methods=['POST'])
-@login_required
 def restore_data():
     import json
     file = request.files.get('backup_file')
@@ -1678,7 +1655,6 @@ def restore_data():
 
 # ---------------- SETTINGS PAGE ----------------
 @main.route('/settings')
-@login_required
 def settings():
     # 1. Fetch current threshold (existing logic)
     current_threshold = session.get('low_stock_threshold', 5) 
@@ -1711,7 +1687,6 @@ def settings():
 # ---------------- UPDATE PROFILE ----------------
 # ---------------- UPDATE PROFILE (Simplified - No Image) ----------------
 @main.route('/settings/update_profile', methods=['POST'])
-@login_required
 def update_profile():
     new_username = request.form.get('username')
     new_email = request.form.get('email') # <--- Get the email from the form
@@ -1838,7 +1813,6 @@ def reset_password(token):
 
 # ---------------- CHANGE PASSWORD ----------------
 @main.route('/settings/change_password', methods=['POST'])
-@login_required
 def change_password():
     current_password = request.form.get('current_password')
     new_password = request.form.get('new_password')
@@ -1869,7 +1843,6 @@ def change_password():
 
 # ---------------- NEW: PARTIAL DELETE ROUTE ----------------
 @main.route('/delete_item_quantity', methods=['POST'])
-@login_required
 def delete_item_quantity():
     item_id = request.form.get('item_id')
     delete_all = request.form.get('delete_all')
@@ -1943,7 +1916,6 @@ def delete_item_quantity():
 
 
 @main.route('/handle_bulk_trash', methods=['POST'])
-@login_required
 def handle_bulk_trash():
     action = request.form.get('action') # 'restore' or 'delete'
     item_ids = request.form.getlist('trash_ids') # List of selected IDs
@@ -2001,7 +1973,6 @@ def handle_bulk_trash():
 # ---------------- BORROW ITEM ROUTE ----------------
 # ---------------- BORROW ITEM ROUTE ----------------
 @main.route('/borrow_item', methods=['POST'])
-@login_required
 def borrow_item():
     item_id = request.form.get('item_id')
     borrower_name = request.form.get('borrower_name')
@@ -2060,7 +2031,6 @@ def borrow_item():
 # ---------------- RETURN ITEM ROUTE ----------------
 # ---------------- RETURN ITEM ROUTE ----------------
 @main.route('/return_item/<int:borrow_id>', methods=['POST'])
-@login_required
 def return_item(borrow_id):
     # Find the specific transaction
     loan_record = Borrowing.query.get_or_404(borrow_id)
@@ -2099,7 +2069,6 @@ def return_item(borrow_id):
 # ---------------- BORROWED ITEMS PAGE ----------------
 @main.route('/borrowed_items')
 @main.route('/borrow_list')
-@login_required
 def borrowed_items():
     # Fetch borrowing records with inventory details
     borrowed_records = db.session.query(Borrowing, Inventory)\
@@ -2110,7 +2079,6 @@ def borrowed_items():
 
 # ---------------- DISPOSAL & ISSUES PAGE ----------------
 @main.route('/disposal_issues')
-@login_required
 def disposal_issues():
     # Get disposal logs that need resolution
     disposal_logs = db.session.query(DisposalHistory, Inventory)\
@@ -2134,7 +2102,6 @@ def disposal_issues():
 # ════════════════════════════════════════════════════════════════
 
 @main.route('/pos')
-@login_required
 def pos_terminal():
     """Main POS terminal page — serves all active, in-stock products."""
     products = Inventory.query.filter(
@@ -2151,7 +2118,6 @@ def pos_terminal():
 
 
 @main.route('/pos/products')
-@login_required
 def pos_products_api():
     """JSON endpoint — returns products filtered by category / search."""
     category = request.args.get('category', 'all')
@@ -2184,7 +2150,6 @@ def pos_products_api():
 
 
 @main.route('/pos/complete_sale', methods=['POST'])
-@login_required
 def pos_complete_sale():
     """Process a completed POS sale: deduct stock, save transaction, return receipt data."""
     data = request.get_json(silent=True)
@@ -2285,7 +2250,6 @@ def pos_complete_sale():
 
 
 @main.route('/pos/transactions')
-@login_required
 def pos_transactions():
     """Transaction history page."""
     page     = request.args.get('page', 1, type=int)
@@ -2298,7 +2262,6 @@ def pos_transactions():
 
 
 @main.route('/pos/receipt/<int:txn_id>')
-@login_required
 def pos_receipt(txn_id):
     """View a saved receipt."""
     txn = POSTransaction.query.get_or_404(txn_id)
