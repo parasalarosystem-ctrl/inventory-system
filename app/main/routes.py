@@ -19,6 +19,20 @@ from email.mime.multipart import MIMEMultipart
 
 main = Blueprint('main', __name__, template_folder='templates')
 
+_PUBLIC_ENDPOINTS = {
+    'main.login',
+    'main.logout',
+    'main.home',
+    'main.forgot_password',
+    'main.reset_password',
+    'static',
+}
+
+@main.before_request
+def require_login():
+    if request.endpoint not in _PUBLIC_ENDPOINTS and not current_user.is_authenticated:
+        return redirect(url_for('main.login'))
+
 
 @main.context_processor
 def inject_notif_count():
