@@ -51,7 +51,22 @@ def create_app():
     # ---------------------
     with app.app_context():
         from app.models import User
+        from sqlalchemy import text, inspect as sa_inspect
         db.create_all()
+
+        # Ensure undertaking_property column exists — safe to run on any DB state
+        try:
+            inspector = sa_inspect(db.engine)
+            cols = [c['name'] for c in inspector.get_columns('inventory')]
+            if 'undertaking_property' not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text(
+                        'ALTER TABLE inventory ADD COLUMN undertaking_property VARCHAR(100)'
+                    ))
+                    conn.commit()
+                    print('[OK] Added undertaking_property column to inventory')
+        except Exception as e:
+            print(f'[INFO] Schema patch skipped: {e}')
 
         # Check if admin exists by USERNAME (since that is what caused the error)
         if not User.query.filter_by(username='admin').first(): 

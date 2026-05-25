@@ -19,6 +19,12 @@ from email.mime.multipart import MIMEMultipart
 
 main = Blueprint('main', __name__, template_folder='templates')
 
+def _emit(event, data):
+    try:
+        socketio.emit(event, data, broadcast=True)
+    except Exception:
+        pass
+
 _PUBLIC_ENDPOINTS = {
     'main.login',
     'main.logout',
@@ -397,11 +403,11 @@ def add_item():
 
         flash(f'Item "{product_name}" added successfully!', 'success')
         log_audit('Add Product', target=product_name, details=f'Qty: {receipt_qty}, Price: {amount}')
-        socketio.emit('inventory_change', {
+        _emit('inventory_change', {
             'action': 'added', 'item': product_name,
             'user': current_user.username or current_user.email,
             'updates': [{'id': new_item.id, 'qty': new_item.quantity, 'reorder': new_item.restock_threshold or 5}]
-        }, broadcast=True)
+        })
         return redirect(url_for('main.inventory_list'))
 
     return render_template('add_item.html')
@@ -457,11 +463,11 @@ def edit_item(item_id):
     check_low_stock_flash(item)
     flash('Item updated successfully', 'success')
     log_audit('Edit Product', target=item.product_name, details=f'Qty: {item.quantity}, Price: {item.selling_price}')
-    socketio.emit('inventory_change', {
+    _emit('inventory_change', {
         'action': 'edited', 'item': item.product_name,
         'user': current_user.username or current_user.email,
         'updates': [{'id': item.id, 'qty': item.quantity, 'reorder': item.restock_threshold or 5}]
-    }, broadcast=True)
+    })
     return redirect(url_for('main.inventory_list'))
 
 # ---------------- DELETE PRODUCT ----------------
@@ -494,11 +500,11 @@ def delete_item(item_id):
 
     log_audit('Delete Product', target=item_name, details=f'Qty: {item_qty} — Moved to Recycle Bin')
     flash('Item moved to Trash.', 'success')
-    socketio.emit('inventory_change', {
+    _emit('inventory_change', {
         'action': 'deleted', 'item': item_name,
         'user': current_user.username or current_user.email,
         'updates': [{'id': item_id, 'qty': 0, 'reorder': 0}]
-    }, broadcast=True)
+    })
     return redirect(url_for('main.inventory_list'))
 
 
@@ -531,11 +537,11 @@ def restore_item(item_id):
     
     db.session.commit()
     log_audit('Restore Product', target=trash_item.product_name, details='Restored from Recycle Bin')
-    socketio.emit('inventory_change', {
+    _emit('inventory_change', {
         'action': 'restored', 'item': trash_item.product_name,
         'user': current_user.username or current_user.email,
         'updates': []
-    }, broadcast=True)
+    })
     return redirect(url_for('main.settings'))
 
 
@@ -899,11 +905,11 @@ def import_excel_data():
             msg += f" (Skipped {skipped_count} duplicates: {', '.join(skipped_examples)}...)"
 
         log_audit('Import Excel', target='Bulk Import', details=f'{added_count} items imported, {skipped_count} skipped')
-        socketio.emit('inventory_change', {
+        _emit('inventory_change', {
             'action': 'imported', 'item': f'{added_count} items',
             'user': current_user.username or current_user.email,
             'updates': []
-        }, broadcast=True)
+        })
         return jsonify({'status': 'success', 'message': msg})
         
     except Exception as e:
@@ -1431,11 +1437,11 @@ def resolve_disposal():
 
     log_audit('Resolve Disposal', target=item.product_name, details=f'Resolution: {resolution_type}, Notes: {notes}')
     flash('Item restored to Inventory.', 'success')
-    socketio.emit('inventory_change', {
+    _emit('inventory_change', {
         'action': 'restored', 'item': item.product_name,
         'user': current_user.username or current_user.email,
         'updates': [{'id': item.id, 'qty': item.quantity, 'reorder': item.restock_threshold or 5}]
-    }, broadcast=True)
+    })
     return redirect(url_for('main.reports'))
 
 
@@ -1480,11 +1486,11 @@ def dispose_item():
     check_low_stock_flash(item)
     flash(f'Item marked as {status}.', 'success')
     log_audit('Dispose Product', target=item.product_name, details=f'Status: {status}, Qty: {qty}, Reason: {reason}')
-    socketio.emit('inventory_change', {
+    _emit('inventory_change', {
         'action': 'disposed', 'item': item.product_name,
         'user': current_user.username or current_user.email,
         'updates': [{'id': item.id, 'qty': item.quantity, 'reorder': item.restock_threshold or 5}]
-    }, broadcast=True)
+    })
     return redirect(url_for('main.inventory_list'))
 
 
@@ -1551,11 +1557,11 @@ def delete_multiple_items():
         db.session.commit()
         flash(f'Successfully moved {deleted_count} items to the Recycle Bin.', 'success')
         log_audit('Bulk Delete', target='Multiple Items', details=f'{deleted_count} items moved to Recycle Bin')
-        socketio.emit('inventory_change', {
+        _emit('inventory_change', {
             'action': 'bulk_deleted', 'item': f'{deleted_count} items',
             'user': current_user.username or current_user.email,
             'updates': []
-        }, broadcast=True)
+        })
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting items: {str(e)}', 'error')
@@ -1673,11 +1679,11 @@ def restore_data():
 
         db.session.commit()
         flash(f'Restore complete: {inv_count} inventory items, {hist_count} history logs, {borrow_count} borrowing records restored.', 'success')
-        socketio.emit('inventory_change', {
+        _emit('inventory_change', {
             'action': 'restored', 'item': f'{inv_count} items from backup',
             'user': current_user.username or current_user.email,
             'updates': []
-        }, broadcast=True)
+        })
 
     except Exception as e:
         db.session.rollback()
@@ -1907,11 +1913,11 @@ def delete_item_quantity():
         log_audit('Delete Product', target=item.product_name,
                   details=f'Entire record deleted — Qty: {item.quantity or 0}')
         flash('Entire item record moved to Recycle Bin.', 'success')
-        socketio.emit('inventory_change', {
+        _emit('inventory_change', {
             'action': 'deleted', 'item': item.product_name,
             'user': current_user.username or current_user.email,
             'updates': [{'id': item.id, 'qty': 0, 'reorder': 0}]
-        }, broadcast=True)
+        })
 
     # CASE B: Partial Delete (Split the item)
     else:
@@ -1949,11 +1955,11 @@ def delete_item_quantity():
         log_audit('Delete Product', target=item.product_name,
                   details=f'Partial delete — Qty removed: {qty_to_delete}')
         flash(f'Moved {qty_to_delete} items to Recycle Bin. Remaining stock updated.', 'success')
-        socketio.emit('inventory_change', {
+        _emit('inventory_change', {
             'action': 'edited', 'item': item.product_name,
             'user': current_user.username or current_user.email,
             'updates': [{'id': item.id, 'qty': item.quantity, 'reorder': item.restock_threshold or 5}]
-        }, broadcast=True)
+        })
 
     return redirect(url_for('main.inventory_list'))
 
@@ -2070,11 +2076,11 @@ def borrow_item():
     check_low_stock_flash(item)
     flash(f'{borrow_qty} item(s) borrowed by {borrower_name}.', 'success')
     log_audit('Borrow Product', target=item.product_name, details=f'Borrower: {borrower_name}, Qty: {borrow_qty}')
-    socketio.emit('borrow_change', {
+    _emit('borrow_change', {
         'action': 'borrowed', 'item': item.product_name,
         'user': current_user.username or current_user.email,
         'updates': [{'id': item.id, 'qty': item.quantity, 'reorder': item.restock_threshold or 5}]
-    }, broadcast=True)
+    })
     return redirect(url_for('main.inventory_list'))
 # ---------------- RETURN ITEM ROUTE ----------------
 # ---------------- RETURN ITEM ROUTE ----------------
@@ -2112,11 +2118,11 @@ def return_item(borrow_id):
     db.session.commit()
     log_audit('Return Product', target=item.product_name, details=f'Returned by {loan_record.borrower_name}, Qty: {loan_record.quantity}')
     flash('Item returned to inventory successfully.', 'success')
-    socketio.emit('borrow_change', {
+    _emit('borrow_change', {
         'action': 'returned', 'item': item.product_name,
         'user': current_user.username or current_user.email,
         'updates': [{'id': item.id, 'qty': item.quantity, 'reorder': item.restock_threshold or 5}]
-    }, broadcast=True)
+    })
     return redirect(url_for('main.borrowed_items'))
 
 # ---------------- BORROWED ITEMS PAGE ----------------
@@ -2287,12 +2293,12 @@ def pos_complete_sale():
 
         log_audit('POS Sale', target=receipt_no,
                   details=f'Total: ₱{total_amount:.2f}, Items: {len(cart_items)}')
-        socketio.emit('sale_made', {
+        _emit('sale_made', {
             'receipt_no': receipt_no,
             'total': total_amount,
             'cashier': txn.cashier,
             'updates': stock_updates
-        }, broadcast=True)
+        })
 
         return jsonify({
             'success':          True,

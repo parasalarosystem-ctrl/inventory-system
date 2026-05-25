@@ -2,7 +2,6 @@ from app.extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from sqlalchemy.ext.hybrid import hybrid_property
 
 
 class Category(db.Model):
@@ -18,65 +17,26 @@ class Inventory(db.Model):
     id                    = db.Column(db.Integer, primary_key=True)
     expiry_date           = db.Column(db.Date, nullable=True)
     product_name          = db.Column(db.String(255), nullable=False)
-    unit                  = db.Column(db.String(50))   # unit: pcs, kg, bottle …
+    unit                  = db.Column(db.String(50))
     quantity              = db.Column(db.Integer, default=0)
     selling_price         = db.Column(db.Float)
     restock_threshold     = db.Column(db.Integer, default=5)
-
-    # Normalised category FK
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
-    category    = db.relationship('Category', backref='items', lazy='joined')
-
-    product_image = db.Column(db.String(255), nullable=True)
-    status         = db.Column(db.String(50), default='Active')
-    is_deleted     = db.Column(db.Boolean, default=False)
-    deleted_at     = db.Column(db.DateTime, nullable=True)
+    undertaking_property  = db.Column(db.String(100), nullable=True)
+    product_image         = db.Column(db.String(255), nullable=True)
+    status                = db.Column(db.String(50), default='Active')
+    is_deleted            = db.Column(db.Boolean, default=False)
+    deleted_at            = db.Column(db.DateTime, nullable=True)
 
     history_logs = db.relationship(
         'DisposalHistory', backref='item', lazy=True, cascade='all, delete-orphan'
     )
 
     __table_args__ = (
-        # Most queries filter by both is_deleted and status together
         db.Index('ix_inventory_deleted_status', 'is_deleted', 'status'),
-        # FK lookup for category join
-        db.Index('ix_inventory_category_id', 'category_id'),
-        # Sorting / search by product name
         db.Index('ix_inventory_product_name', 'product_name'),
-        # Expiry-date range queries
         db.Index('ix_inventory_expiry_date', 'expiry_date'),
-        # Low-stock filter on quantity
         db.Index('ix_inventory_quantity', 'quantity'),
     )
-
-    # ------------------------------------------------------------------
-    # undertaking_property — hybrid property that delegates to Category
-    # ------------------------------------------------------------------
-    @hybrid_property
-    def undertaking_property(self):
-        return self.category.name if self.category else None
-
-    @undertaking_property.setter
-    def undertaking_property(self, value):
-        if value:
-            value = str(value).strip()
-            cat = Category.query.filter_by(name=value).first()
-            if not cat:
-                cat = Category(name=value)
-                db.session.add(cat)
-                db.session.flush()
-            self.category = cat
-        else:
-            self.category = None
-
-    @undertaking_property.expression
-    def undertaking_property(cls):
-        return (
-            db.select(Category.name)
-            .where(Category.id == cls.category_id)
-            .correlate(cls)
-            .scalar_subquery()
-        )
 
     @property
     def balance(self):
