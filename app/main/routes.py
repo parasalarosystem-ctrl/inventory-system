@@ -352,6 +352,14 @@ def add_item():
             flash('Product Name is required.', 'error')
             return redirect(url_for('main.add_item'))
 
+        existing = Inventory.query.filter(
+            db.func.lower(Inventory.product_name) == product_name.lower(),
+            Inventory.is_deleted == False
+        ).first()
+        if existing:
+            flash(f'"{product_name}" already exists in inventory. Edit the existing product to update its stock.', 'error')
+            return redirect(url_for('main.add_item'))
+
         date_val = request.form.get('expiry_date')
         if not date_val:
             flash('Expiry Date is required.', 'error')
