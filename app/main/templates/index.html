@@ -23,9 +23,13 @@
         .header p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem; }
 
         /* Controls Section */
-        .inventory-controls { 
-            display: flex; gap: 15px; margin-bottom: 25px; align-items: center; flex-wrap: wrap; 
+        .inventory-controls {
+            display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px;
         }
+        .controls-row {
+            display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;
+        }
+        .controls-row .search-form { flex: 1 1 0; min-width: 0; }
 
         /* Search Bar (Glass Style) */
         .search-form { 
@@ -671,19 +675,24 @@
 
         <!-- CONTROLS -->
         <div class="inventory-controls">
-            <form method="GET" action="{{ url_for('main.inventory_list') }}" class="search-form">
-                <i class="fas fa-search"></i>
-                <input type="text" name="search" placeholder="Search by name or category..." value="{{ search_term if search_term }}">
-                <button type="submit">Search</button>
-            </form>
-            <a href="{{ url_for('main.add_item') }}" class="btn btn-add-new"><i class="fas fa-plus"></i> Add Product</a>
-            <label class="btn btn-import" style="cursor:pointer;" title="Import products from Excel">
-                <i class="fas fa-file-upload"></i> Bulk Import
-                <input type="file" accept=".xlsx" style="display:none;" onchange="handleImportFile(this)">
-            </label>
-            <button class="btn btn-template" onclick="downloadImportTemplate()" title="Download Excel template for bulk import">
-                <i class="fas fa-file-download"></i> Download Template
-            </button>
+            <!-- Row 1: Search + action buttons -->
+            <div class="controls-row">
+                <form method="GET" action="{{ url_for('main.inventory_list') }}" class="search-form">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" placeholder="Search by name or category..." value="{{ search_term if search_term }}">
+                    <button type="submit">Search</button>
+                </form>
+                <a href="{{ url_for('main.add_item') }}" class="btn btn-add-new"><i class="fas fa-plus"></i> Add Product</a>
+                <label class="btn btn-import" style="cursor:pointer;" title="Import products from Excel">
+                    <i class="fas fa-file-upload"></i> Bulk Import
+                    <input type="file" accept=".xlsx" style="display:none;" onchange="handleImportFile(this)">
+                </label>
+                <button class="btn btn-template" onclick="downloadImportTemplate()" title="Download Excel template for bulk import">
+                    <i class="fas fa-file-download"></i> Download Template
+                </button>
+            </div>
+            <!-- Row 2: Filter + View toggle -->
+            <div class="controls-row">
             <div class="filter-dropdown-wrap">
                 <button class="btn" onclick="toggleFilterPanel(event)" id="filterBtn" title="Filter products">
                     <i class="fas fa-filter"></i> Filter
@@ -756,7 +765,8 @@
                 <span id="toggleLabel">Card View</span>
                 <div class="toggle-switch" id="toggleSwitch"></div>
             </div>
-        </div>
+            </div><!-- end controls-row 2 -->
+        </div><!-- end inventory-controls -->
 
         <!-- INVENTORY TABLE -->
         <div style="margin-bottom:15px;">
