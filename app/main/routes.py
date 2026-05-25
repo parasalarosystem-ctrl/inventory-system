@@ -44,21 +44,24 @@ def require_login():
 def inject_notif_count():
     if not current_user.is_authenticated:
         return {'notif_count': 0, 'notif_ids': '[]'}
-    now = date.today()
-    low_items = Inventory.query.filter(
-        Inventory.status == 'Active',
-        Inventory.is_deleted == False,
-        Inventory.quantity <= Inventory.restock_threshold
-    ).with_entities(Inventory.id).all()
-    exp_items = Inventory.query.filter(
-        Inventory.status == 'Active',
-        Inventory.is_deleted == False,
-        Inventory.expiry_date != None,
-        Inventory.expiry_date <= (now + timedelta(days=30))
-    ).with_entities(Inventory.id).all()
-    all_ids = list({r.id for r in low_items} | {r.id for r in exp_items})
-    import json
-    return {'notif_count': len(all_ids), 'notif_ids': json.dumps(all_ids)}
+    try:
+        import json
+        now = date.today()
+        low_items = Inventory.query.filter(
+            Inventory.status == 'Active',
+            Inventory.is_deleted == False,
+            Inventory.quantity <= Inventory.restock_threshold
+        ).with_entities(Inventory.id).all()
+        exp_items = Inventory.query.filter(
+            Inventory.status == 'Active',
+            Inventory.is_deleted == False,
+            Inventory.expiry_date != None,
+            Inventory.expiry_date <= (now + timedelta(days=30))
+        ).with_entities(Inventory.id).all()
+        all_ids = list({r.id for r in low_items} | {r.id for r in exp_items})
+        return {'notif_count': len(all_ids), 'notif_ids': json.dumps(all_ids)}
+    except Exception:
+        return {'notif_count': 0, 'notif_ids': '[]'}
 
 
 # ---------------- NOTIFICATIONS ----------------
@@ -374,32 +377,37 @@ def add_item():
             image_file.save(os.path.join(upload_path, filename))
             product_image = filename
 
-        new_item = Inventory(
-            expiry_date=item_date,
-            product_name=product_name,
-            unit=request.form.get('unit', '').strip(),
-            quantity=receipt_qty,
-            selling_price=amount,
-            restock_threshold=reorder_point,
-            undertaking_property=request.form.get('undertaking_property', '').strip(),
-            product_image=product_image,
-            status='Active'
-        )
-        db.session.add(new_item)
-        db.session.commit()
+        try:
+            new_item = Inventory(
+                expiry_date=item_date,
+                product_name=product_name,
+                unit=request.form.get('unit', '').strip(),
+                quantity=receipt_qty,
+                selling_price=amount,
+                restock_threshold=reorder_point,
+                undertaking_property=request.form.get('undertaking_property', '').strip(),
+                product_image=product_image,
+                status='Active'
+            )
+            db.session.add(new_item)
+            db.session.commit()
 
-        # Log the Add action
-        add_log = DisposalHistory(
-            inventory_id=new_item.id,
-            event_type='Added',
-            quantity=receipt_qty,
-            status_snapshot='Active',
-            remarks=f'Product added: {product_name}',
-            event_date=datetime.now(),
-            is_resolved=True
-        )
-        db.session.add(add_log)
-        db.session.commit()
+            add_log = DisposalHistory(
+                inventory_id=new_item.id,
+                event_type='Added',
+                quantity=receipt_qty,
+                status_snapshot='Active',
+                remarks=f'Product added: {product_name}',
+                event_date=datetime.now(),
+                is_resolved=True
+            )
+            db.session.add(add_log)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'add_item DB error: {e}')
+            flash(f'Error saving product: {e}', 'error')
+            return redirect(url_for('main.add_item'))
 
         flash(f'Item "{product_name}" added successfully!', 'success')
         log_audit('Add Product', target=product_name, details=f'Qty: {receipt_qty}, Price: {amount}')
