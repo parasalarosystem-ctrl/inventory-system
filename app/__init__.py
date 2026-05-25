@@ -18,7 +18,12 @@ def create_app():
 
     login_manager.init_app(app)
     limiter.init_app(app)
-    socketio.init_app(app, cors_allowed_origins='*', async_mode='eventlet')
+    try:
+        from eventlet.green import threading as _et  # noqa: F401
+        _async_mode = 'eventlet'
+    except (ImportError, AttributeError, Exception):
+        _async_mode = 'threading'
+    socketio.init_app(app, cors_allowed_origins='*', async_mode=_async_mode)
 
     login_manager.login_view = 'main.login'
 
