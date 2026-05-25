@@ -388,7 +388,7 @@ def add_item():
             event_type='Added',
             quantity=receipt_qty,
             status_snapshot='Active',
-            remarks=f'Product added: {item_description}',
+            remarks=f'Product added: {product_name}',
             event_date=datetime.now(),
             is_resolved=True
         )
