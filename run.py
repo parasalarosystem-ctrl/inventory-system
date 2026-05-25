@@ -1,7 +1,7 @@
 try:
     import eventlet
     eventlet.monkey_patch()
-except ImportError:
+except (ImportError, AttributeError, Exception):
     pass
 
 from app import create_app
